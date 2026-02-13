@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MonadArena</title>
+    <link rel="icon" type="image/png" href="/assets/monadarena-removebg-preview3.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --purple: #6D51FE;
+            --purple-light: #DDD7FE;
+            --purple-dim: #836EF9;
+            --purple-bg: rgba(110, 84, 255, 0.08);
+            --purple-bg-hover: rgba(110, 84, 255, 0.14);
+            --cyan: #85E6FF;
+            --pink: #FF8EE4;
+            --orange: #FFAE45;
+            --green: #40B66B;
+            --red: #FC5555;
+
+            --bg-0: #0E091C;
+            --bg-1: #16102A;
+            --bg-2: #1E1636;
+            --bg-3: #271E44;
+            --surface: #1B1430;
+            --surface-hover: #221A3C;
+
+            --text-1: #FFFFFF;
+            --text-2: #B8ACD6;
+            --text-3: #7B6FA0;
+
+            --radius-sm: 12px;
+            --radius-md: 20px;
+            --radius-lg: 24px;
+            --radius-xl: 30px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-0);
+            color: var(--text-1);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ====== Subtle BG Glow ====== */
+        .bg-glow {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .bg-glow::before {
+            content: '';
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            top: -200px;
+            right: -100px;
+            background: radial-gradient(circle, rgba(110, 84, 255, 0.12) 0%, transparent 70%);
+            filter: blur(80px);
+        }
+        .bg-glow::after {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            bottom: -150px;
+            left: -100px;
+            background: radial-gradient(circle, rgba(133, 230, 255, 0.06) 0%, transparent 70%);
+            filter: blur(80px);
+        }
+
+        /* ====== NAV ====== */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: rgba(14, 9, 28, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .logo-mark {
+            width: 62px;
+            height: 62px;
+            flex-shrink: 0;
+        }
+
+        .logo-mark img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .logo-name {
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--text-1);
+            letter-spacing: -0.3px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+        }
+
+        .nav-tab {
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-3);
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+
+        .nav-tab:hover { color: var(--text-2); background: var(--purple-bg); }
+        .nav-tab.active { color: var(--text-1); background: var(--purple-bg-hover); }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chain-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: var(--bg-2);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-2);
+        }
+
+        .chain-pill .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+
+        .nav-btn {
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+            transition: all 0.2s;
+            background: var(--purple-bg-hover);
+            color: var(--purple-light);
+        }
+        .nav-btn:hover { background: rgba(110, 84, 255, 0.22); }
+
+        /* ====== LAYOUT ====== */
+        .app {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px 80px;
+        }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* ====== HERO / ARENA PAGE ====== */
+        .hero {
+            text-align: center;
+            padding: 40px 0 48px;
+        }
+
+        .hero h1 {
+            font-size: 44px;
+            font-weight: 800;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 14px;
+        }
+
+        .hero h1 .gradient {
+            background: linear-gradient(135deg, #6D51FE 0%, #E99EE9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 16px;
+            color: var(--text-3);
+            max-width: 480px;
+            margin: 0 auto 32px;
+            line-height: 1.5;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        /* ====== BUTTONS ====== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .btn-lg { padding: 16px 32px; font-size: 17px; border-radius: 20px; }
+        .btn-sm { padding: 10px 18px; font-size: 13px; border-radius: 12px; }
+
+        .btn-purple {
+            background: var(--purple);
+            color: white;
+        }
+        .btn-purple:hover { background: var(--purple-dim); transform: translateY(-1px); }
+        .btn-purple:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .btn-surface {
+            background: var(--bg-2);
+            color: var(--text-2);
+        }
+        .btn-surface:hover { background: var(--bg-3); color: var(--text-1); }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-3);
+            padding: 10px 16px;
+        }
+        .btn-ghost:hover { color: var(--text-1); background: var(--purple-bg); }
+
+        .btn-accent {
+            background: var(--purple-bg-hover);
+            color: var(--purple-light);
+        }
+        .btn-accent:hover { background: rgba(110, 84, 255, 0.22); }
+
+        /* ====== STATS ROW ====== */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border-radius: var(--radius-md);
+            padding: 22px 24px;
+            transition: background 0.15s;
+        }
+        .stat-card:hover { background: var(--surface-hover); }
+
+        .stat-card .label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-3);
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .stat-card .sub {
+            font-size: 12px;
+            color: var(--text-3);
+            margin-top: 4px;
+        }
+
+        /* ====== AGENT CARDS ====== */
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .section-head h2 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 14px;
+            margin-bottom: 48px;
+        }
+
+        .agent-card {
+            background: var(--surface);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            transition: all 0.2s;
+            position: relative;
+            cursor: default;
+        }
+
+        .agent-card:hover {
+            background: var(--surface-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .agent-top {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .agent-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .agent-avatar.aggressive { background: rgba(252, 85, 85, 0.15); color: var(--red); }
+        .agent-avatar.conservative { background: rgba(133, 230, 255, 0.15); color: var(--cyan); }
+        .agent-avatar.balanced { background: var(--purple-bg-hover); color: var(--purple-light); }
+        .agent-avatar.adaptive { background: rgba(255, 174, 69, 0.15); color: var(--orange); }
+
+        .agent-avatar svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .agent-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .agent-info .tag {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-3);
+        }
+
+        .agent-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .metric {
+            background: rgba(14, 9, 28, 0.4);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+        }
+
+        .metric .m-label {
+            font-size: 11px;
+            color: var(--text-3);
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .metric .m-value {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .m-value.up { color: var(--green); }
+        .m-value.down { color: var(--red); }
+
+        .agent-card .bluff-line {
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--pink);
+            font-weight: 500;
+        }
+
+        .agent-card .addr {
+            margin-top: 10px;
+            font-size: 11px;
+            color: var(--text-3);
+            font-family: 'SFMono-Regular', 'Consolas', monospace;
+            opacity: 0.7;
+        }
+
+        /* ====== PANEL CARD (Leaderboard / History) ====== */
+        .panel {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .panel-head h3 {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        /* ====== LEADERBOARD ====== */
+        .lb-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .lb-table th {
+            text-align: left;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-3);
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--bg-2);
+        }
+
+        .lb-table td {
+            padding: 14px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--bg-2);
+        }
+
+        .lb-table tr:last-child td { border-bottom: none; }
+
+        .lb-table tr:hover td { background: rgba(14, 9, 28, 0.3); }
+
+        .lb-rank {
+            font-weight: 700;
+            width: 40px;
+        }
+
+        .lb-rank.r1 { color: var(--orange); }
+        .lb-rank.r2 { color: var(--purple-light); }
+        .lb-rank.r3 { color: var(--cyan); }
+
+        .lb-name {
+            font-weight: 600;
+        }
+
+        .lb-style {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .lb-style.aggressive { background: rgba(252, 85, 85, 0.1); color: var(--red); }
+        .lb-style.conservative { background: rgba(133, 230, 255, 0.1); color: var(--cyan); }
+        .lb-style.balanced { background: var(--purple-bg); color: var(--purple-light); }
+        .lb-style.adaptive { background: rgba(255, 174, 69, 0.1); color: var(--orange); }
+
+        .lb-pnl { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+        /* ====== MATCH HISTORY ====== */
+        .match-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--bg-2);
+            font-size: 14px;
+        }
+
+        .match-row:last-child { border-bottom: none; }
+
+        .match-type {
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        .match-type.poker { background: var(--purple-bg); color: var(--purple-light); }
+        .match-type.auction { background: rgba(255, 174, 69, 0.1); color: var(--orange); }
+        .match-type.rpg_battle { background: rgba(252, 85, 85, 0.1); color: var(--red); }
+
+        .match-players { flex: 1; }
+        .match-players .winner { font-weight: 600; }
+        .match-players .vs { color: var(--text-3); margin: 0 6px; font-size: 12px; }
+
+        .match-detail {
+            font-size: 12px;
+            color: var(--text-3);
+        }
+
+        .match-amount {
+            font-weight: 600;
+            color: var(--text-2);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ====== LIVE FEED (sidebar on Arena page) ====== */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 24px;
+        }
+
+        .feed-panel {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            max-height: 600px;
+            overflow-y: auto;
+            position: sticky;
+            top: 80px;
+        }
+
+        .feed-panel::-webkit-scrollbar { width: 4px; }
+        .feed-panel::-webkit-scrollbar-track { background: transparent; }
+        .feed-panel::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 4px; }
+
+        .feed-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-2);
+        }
+
+        .feed-head .live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: livePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--green); }
+            50% { opacity: 0.4; box-shadow: none; }
+        }
+
+        .feed-item {
+            padding: 10px 14px;
+            margin-bottom: 6px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            line-height: 1.5;
+            background: rgba(14, 9, 28, 0.3);
+            border-left: 3px solid var(--bg-3);
+            animation: feedIn 0.3s ease-out;
+        }
+
+        @keyframes feedIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .feed-item.match_start { border-left-color: var(--purple); }
+        .feed-item.match_result { border-left-color: var(--green); }
+        .feed-item.agent_created { border-left-color: var(--cyan); }
+        .feed-item.reasoning { border-left-color: var(--pink); }
+        .feed-item.error { border-left-color: var(--red); }
+        .feed-item.demo_complete { border-left-color: var(--orange); }
+        .feed-item.trash_talk { border-left-color: var(--pink); font-style: italic; }
+        .feed-item.tournament_start { border-left-color: var(--orange); font-weight: 600; }
+        .feed-item.tournament_champion { border-left-color: #FFD700; font-weight: 700; }
+
+        .feed-item .ftime {
+            font-size: 11px;
+            color: var(--text-3);
+            margin-top: 4px;
+        }
+
+        /* ====== MODAL ====== */
+        .overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .overlay.open { display: flex; }
+
+        .modal {
+            background: var(--bg-1);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            width: 420px;
+            max-width: 90vw;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .field {
+            margin-bottom: 18px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-3);
+            margin-bottom: 8px;
+        }
+
+        .field input, .field select {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-2);
+            border: 2px solid transparent;
+            border-radius: var(--radius-sm);
+            color: var(--text-1);
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .field input:focus, .field select:focus {
+            border-color: var(--purple);
+        }
+
+        .field select option {
+            background: var(--bg-1);
+            color: var(--text-1);
+        }
+
+        /* ====== PERSONALITY PICKER ====== */
+        .personality-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .p-option {
+            position: relative;
+            padding: 14px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-2);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .p-option:hover {
+            background: var(--bg-3);
+        }
+
+        .p-option.selected {
+            border-color: var(--purple);
+            background: rgba(109, 81, 254, 0.1);
+        }
+
+        .p-option .p-icon {
+            font-size: 22px;
+            margin-bottom: 6px;
+        }
+
+        .p-option .p-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-1);
+            margin-bottom: 2px;
+        }
+
+        .p-option .p-desc {
+            font-size: 11px;
+            color: var(--text-3);
+            line-height: 1.3;
+        }
+
+        .p-option .p-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 8px;
+        }
+
+        .p-option .p-class {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            padding: 2px 6px;
+            border-radius: 5px;
+        }
+
+        .p-option[data-val="aggressive"] .p-class { background: rgba(252,85,85,0.12); color: var(--red); }
+        .p-option[data-val="conservative"] .p-class { background: rgba(133,230,255,0.12); color: var(--cyan); }
+        .p-option[data-val="balanced"] .p-class { background: rgba(109,81,254,0.12); color: var(--purple-light); }
+        .p-option[data-val="adaptive"] .p-class { background: rgba(255,174,69,0.12); color: var(--orange); }
+
+        .p-option .p-check {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid var(--bg-3);
+            transition: all 0.2s;
+        }
+
+        .p-option.selected .p-check {
+            border-color: var(--purple);
+            background: var(--purple);
+            box-shadow: inset 0 0 0 3px var(--bg-1);
+        }
+
+        .modal-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 28px;
+        }
+        .modal-btns .btn { flex: 1; }
+
+        /* ====== SPINNER ====== */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ====== EMPTY ====== */
+        .empty {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-3);
+            font-size: 14px;
+        }
+
+        .empty svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        /* ====== TOAST ====== */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px 20px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-1);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.06);
+            backdrop-filter: blur(16px);
+            min-width: 320px;
+            max-width: 420px;
+            animation: toastIn 0.35s ease-out;
+            border-left: 3px solid var(--purple);
+        }
+
+        .toast.toast-error { border-left-color: var(--red); }
+        .toast.toast-success { border-left-color: var(--green); }
+        .toast.toast-info { border-left-color: var(--cyan); }
+
+        .toast.toast-out {
+            animation: toastOut 0.3s ease-in forwards;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(40px); }
+        }
+
+        .toast-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+            line-height: 1;
+            margin-top: 1px;
+        }
+
+        .toast-body {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-1);
+        }
+
+        .toast-msg {
+            font-size: 13px;
+            color: var(--text-2);
+            line-height: 1.4;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-3);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 0 0 8px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .toast-close:hover { color: var(--text-1); }
+
+        /* ====== POKER TABLE OVERLAY ====== */
+        .poker-table-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(12px);
+            z-index: 150;
+            align-items: center;
+            justify-content: center;
+        }
+        .poker-table-overlay.open { display: flex; }
+
+        .poker-table {
+            width: 720px;
+            max-width: 95vw;
+            background: var(--bg-1);
+            border-radius: var(--radius-lg);
+            padding: 0;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+            overflow: hidden;
+            animation: showdownIn 0.4s ease-out;
+        }
+
+        @keyframes showdownIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .pt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--bg-2);
+        }
+
+        .pt-title {
+            font-size: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pt-badge {
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--purple-bg-hover);
+            color: var(--purple-light);
+        }
+
+        .pt-close {
+            background: none;
+            border: none;
+            color: var(--text-3);
+            font-size: 22px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+        .pt-close:hover { color: var(--text-1); }
+
+        /* Felt area */
+        .pt-felt {
+            background: radial-gradient(ellipse at center, #1a4a2e 0%, #0d2818 100%);
+            border: 3px solid #2a7a4a;
+            border-radius: var(--radius-md);
+            margin: 20px;
+            padding: 24px;
+            position: relative;
+            min-height: 280px;
+        }
+
+        /* Players row */
+        .pt-players {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .pt-player {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 140px;
+        }
+
+        .pt-player-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pt-player-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 800;
+        }
+        .pt-player-avatar.aggressive { background: rgba(252,85,85,0.2); color: var(--red); }
+        .pt-player-avatar.conservative { background: rgba(133,230,255,0.2); color: var(--cyan); }
+        .pt-player-avatar.balanced { background: rgba(109,81,254,0.2); color: var(--purple-light); }
+        .pt-player-avatar.adaptive { background: rgba(255,174,69,0.2); color: var(--orange); }
+
+        .pt-player-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .pt-player-pos {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.6);
+        }
+
+        .pt-hand-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.4);
+        }
+
+        .pt-hand-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #FFD700;
+            min-height: 18px;
+        }
+
+        .pt-winner-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .pt-winner-badge.win { background: rgba(64,182,107,0.2); color: #40B66B; }
+        .pt-winner-badge.lose { background: rgba(252,85,85,0.2); color: #FC5555; }
+
+        /* Cards */
+        .pt-cards {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .poker-card {
+            width: 48px;
+            height: 68px;
+            border-radius: 7px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            line-height: 1;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+            animation: cardFlip 0.4s ease-out backwards;
+        }
+
+        .poker-card.face-down {
+            background: linear-gradient(135deg, #6D51FE 0%, #3a2d8a 100%);
+            border: 2px solid #8a76ff;
+        }
+        .poker-card.face-down::after {
+            content: '';
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .poker-card:nth-child(1) { animation-delay: 0s; }
+        .poker-card:nth-child(2) { animation-delay: 0.1s; }
+        .poker-card:nth-child(3) { animation-delay: 0.2s; }
+        .poker-card:nth-child(4) { animation-delay: 0.3s; }
+        .poker-card:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes cardFlip {
+            from { opacity: 0; transform: rotateY(90deg) scale(0.8); }
+            to { opacity: 1; transform: rotateY(0deg) scale(1); }
+        }
+
+        .poker-card .card-rank { font-size: 17px; font-weight: 800; }
+        .poker-card .card-suit { font-size: 18px; line-height: 1; }
+        .poker-card.red { color: #DC2626; }
+        .poker-card.black { color: #1a1a1a; }
+
+        /* Community center */
+        .pt-community {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .pt-community-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.3);
+            margin-bottom: 10px;
+        }
+
+        .pt-pot {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .pt-pot-value {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background: rgba(255, 215, 0, 0.12);
+            font-size: 15px;
+            font-weight: 700;
+            color: #FFD700;
+        }
+
+        /* Action log */
+        .pt-actions {
+            padding: 16px 24px 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .pt-actions::-webkit-scrollbar { width: 4px; }
+        .pt-actions::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 4px; }
+
+        .pt-actions-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 10px;
+        }
+
+        .pt-action-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0;
+            font-size: 13px;
+            border-bottom: 1px solid var(--bg-2);
+            animation: feedIn 0.3s ease-out backwards;
+        }
+        .pt-action-row:last-child { border-bottom: none; }
+
+        .pt-action-round {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 5px;
+            background: var(--bg-2);
+            color: var(--text-3);
+            flex-shrink: 0;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .pt-action-player {
+            font-weight: 600;
+            min-width: 60px;
+        }
+
+        .pt-action-type {
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        .pt-action-type.fold { color: var(--red); }
+        .pt-action-type.raise { color: var(--orange); }
+        .pt-action-type.call, .pt-action-type.check { color: var(--green); }
+
+        .pt-action-amount {
+            color: var(--text-3);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .pt-action-bluff {
+            margin-left: auto;
+            font-size: 11px;
+            color: var(--pink);
+        }
+
+        /* ====== TRASH TALK ====== */
+        .pt-trash-talk {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 24px;
+            background: var(--bg-2);
+        }
+        .pt-trash-talk.hidden { display: none; }
+
+        .trash-bubble {
+            flex: 1;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-style: italic;
+            color: var(--text-2);
+            background: rgba(14, 9, 28, 0.4);
+            animation: trashIn 0.5s ease-out;
+        }
+
+        .trash-bubble .trash-name {
+            font-weight: 700;
+            font-style: normal;
+            color: var(--pink);
+            margin-bottom: 4px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        @keyframes trashIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ====== TOURNAMENT BRACKET ====== */
+        .bracket {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            padding: 32px 0;
+            overflow-x: auto;
+        }
+
+        .bracket-round {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            align-items: center;
+            min-width: 180px;
+        }
+
+        .bracket-round-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-3);
+            margin-bottom: 8px;
+        }
+
+        .bracket-match {
+            background: var(--bg-2);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            min-width: 160px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .bracket-match.playing {
+            border-color: var(--purple);
+            box-shadow: 0 0 20px rgba(109, 81, 254, 0.2);
+            animation: bracketPulse 2s ease-in-out infinite;
+        }
+
+        .bracket-match.done {
+            border-color: var(--green);
+        }
+
+        @keyframes bracketPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(109, 81, 254, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(109, 81, 254, 0.4); }
+        }
+
+        .bm-player {
+            font-size: 14px;
+            font-weight: 600;
+            padding: 4px 0;
+            color: var(--text-2);
+        }
+
+        .bm-player.winner {
+            color: var(--green);
+            font-weight: 700;
+        }
+
+        .bm-player.eliminated {
+            color: var(--text-3);
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        .bm-vs {
+            font-size: 11px;
+            color: var(--text-3);
+            font-weight: 500;
+            padding: 2px 0;
+        }
+
+        .bm-live {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--red);
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(252, 85, 85, 0.1);
+            margin-top: 6px;
+            animation: livePulse 2s ease-in-out infinite;
+        }
+
+        .bracket-lines {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 8px;
+            min-width: 40px;
+        }
+
+        .bracket-line {
+            width: 40px;
+            height: 2px;
+            background: var(--bg-3);
+        }
+
+        .bracket-champion-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 160px;
+        }
+
+        .bracket-champion {
+            font-size: 22px;
+            font-weight: 800;
+            color: #FFD700;
+            padding: 16px 28px;
+            border-radius: var(--radius-md);
+            background: rgba(255, 215, 0, 0.08);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            text-align: center;
+            animation: championGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes championGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.25); }
+        }
+
+        .bracket-empty {
+            text-align: center;
+            padding: 48px 0;
+            color: var(--text-3);
+        }
+
+        /* ====== RESPONSIVE ====== */
+        @media (max-width: 900px) {
+            .hero h1 { font-size: 32px; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .two-col { grid-template-columns: 1fr; }
+            .agents-grid { grid-template-columns: 1fr; }
+            .feed-panel { position: static; max-height: none; }
+            .nav-tabs { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ====== NAV ====== -->
+<nav>
+    <div class="nav-left">
+        <a class="logo" href="#">
+            <div class="logo-mark"><img src="/assets/monadarena-removebg-preview3.png" alt="MonadArena"></div>
+            <span class="logo-name">MonadArena</span>
+        </a>
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-page="arena">Arena</button>
+            <button class="nav-tab" data-page="leaderboard">Leaderboard</button>
+            <button class="nav-tab" data-page="history">History</button>
+            <button class="nav-tab" data-page="tournament">Tournament</button>
+        </div>
+    </div>
+    <div class="nav-right">
+        <div class="chain-pill">
+            <span class="dot" id="chainDot"></span>
+            <span id="chainLabel">Connecting...</span>
+        </div>
+        <button class="nav-btn" onclick="openModal()">+ New Agent</button>
+    </div>
+</nav>
+
+<!-- ====== APP ====== -->
+<div class="app">
+
+    <!-- PAGE: Arena -->
+    <div class="page active" id="page-arena">
+        <div class="hero">
+            <h1>AI vs AI <span class="gradient">Gaming Arena</span></h1>
+            <p>LLM-powered agents compete in poker, auctions and RPG battles on Monad. Each agent has a unique personality that drives every decision.</p>
+            <div class="hero-actions">
+                <button class="btn btn-purple btn-lg" id="demoBtn" onclick="runDemo()">
+                    Run Full Demo
+                </button>
+                <button class="btn btn-surface btn-lg" onclick="runSingleMatch('poker')">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C9.5 2 8 4 8 6c0 3 4 5 4 7 0-2 4-4 4-7 0-2-1.5-4-4-4zm0 11c-.6 0-1.2-.3-1.6-.5C9.5 13.8 8 15 8 17h8c0-2-1.5-3.2-2.4-4.5-.4.2-1 .5-1.6.5zM11 18h2v3h-2z"/><rect x="5" y="1" width="14" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="7" y="8" font-size="6" font-weight="bold" fill="currentColor">A</text></svg>
+                    Quick Poker
+                </button>
+                <button class="btn btn-surface btn-lg" onclick="runSingleMatch('rpg')">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.5 17.5L3 6V3h3l11.5 11.5" fill="none"/><path d="M13 19l6-6 3 3-6 6-3-3z" fill="currentColor" opacity="0.3"/><path d="M13 19l6-6 3 3-6 6-3-3z"/><circle cx="8" cy="4" r="2" fill="currentColor" opacity="0.3"/><path d="M9.5 17.5L21 6V3h-3L6.5 14.5" fill="none"/></svg>
+                    Quick RPG
+                </button>
+                <button class="btn btn-surface btn-lg" id="tournamentBtn" onclick="runTournament()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" opacity="0.85"><path d="M5 3h14c0 0 1 0 1 1v4c0 2-2 4-4 5l-1 .5c-.3.2-.5.5-.5.8V16h-5v-1.7c0-.3-.2-.6-.5-.8L8 13c-2-1-4-3-4-5V4c0-1 1-1 1-1z"/><path d="M2 3h3v3c0 1-1.5 2-3 2V3zm17 0h3v5c-1.5 0-3-1-3-2V3z" opacity="0.5"/><rect x="9" y="16" width="6" height="2" rx="1"/><rect x="7" y="19" width="10" height="2" rx="1"/></svg>
+                    Tournament
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row" id="statsRow">
+            <div class="stat-card">
+                <div class="label">Total Matches</div>
+                <div class="value" id="statMatches">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Active Agents</div>
+                <div class="value" id="statAgents">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Total Volume</div>
+                <div class="value" id="statVolume">0.00</div>
+                <div class="sub">MON</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Mode</div>
+                <div class="value" id="statMode" style="font-size:18px">--</div>
+            </div>
+        </div>
+
+        <!-- Agents + Feed -->
+        <div class="two-col">
+            <div>
+                <div class="section-head">
+                    <h2>Agents</h2>
+                    <button class="btn btn-ghost btn-sm" onclick="refreshAll()">Refresh</button>
+                </div>
+                <div class="agents-grid" id="agentGrid">
+                    <div class="empty">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+                        <p>No agents yet.<br>Run the demo to get started.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Feed -->
+            <div class="feed-panel" id="feedPanel">
+                <div class="feed-head">
+                    <span class="live-dot"></span>
+                    Live Feed
+                </div>
+                <div id="feedContent">
+                    <div class="feed-item agent_created">
+                        Arena initialized. Ready for action.
+                        <div class="ftime">Now</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE: Leaderboard -->
+    <div class="page" id="page-leaderboard">
+        <div style="padding-top:32px">
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>Leaderboard</h3>
+                </div>
+                <div id="lbContent">
+                    <div class="empty"><p>Play some matches to see rankings.</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE: History -->
+    <div class="page" id="page-history">
+        <div style="padding-top:32px">
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>Match History</h3>
+                </div>
+                <div id="histContent">
+                    <div class="empty"><p>No matches played yet.</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE: Tournament -->
+    <div class="page" id="page-tournament">
+        <div style="padding-top:32px">
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>Tournament Bracket</h3>
+                    <button class="btn btn-purple btn-sm" id="tournamentBtn2" onclick="runTournament()">Start Tournament</button>
+                </div>
+                <div id="bracketContent">
+                    <div class="bracket-empty">
+                        <p style="font-size:16px;margin-bottom:8px">No tournament yet</p>
+                        <p style="font-size:13px">Start a tournament to see the elimination bracket with AI trash talk!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ====== MODAL ====== -->
+<div class="overlay" id="modal">
+    <div class="modal">
+        <h2>Create Agent</h2>
+        <div class="field">
+            <label>Name</label>
+            <input type="text" id="fName" placeholder="e.g. Alpha" value="">
+        </div>
+        <div class="field">
+            <label>Personality</label>
+            <input type="hidden" id="fPersonality" value="balanced">
+            <div class="personality-grid">
+                <div class="p-option" data-val="aggressive" onclick="pickPersonality(this)">
+                    <div class="p-check"></div>
+                    <div class="p-icon">&#x2694;</div>
+                    <div class="p-name">Aggressive</div>
+                    <div class="p-desc">Big bets, frequent bluffs, high-risk plays across all games</div>
+                    <div class="p-tags">
+                        <span class="p-class">Poker: Bluffer</span>
+                        <span class="p-class">RPG: Warrior</span>
+                        <span class="p-class">Auction: Overbidder</span>
+                    </div>
+                </div>
+                <div class="p-option" data-val="conservative" onclick="pickPersonality(this)">
+                    <div class="p-check"></div>
+                    <div class="p-icon">&#x1F6E1;</div>
+                    <div class="p-name">Conservative</div>
+                    <div class="p-desc">Patient, value-focused, waits for strong hands and safe plays</div>
+                    <div class="p-tags">
+                        <span class="p-class">Poker: Tight</span>
+                        <span class="p-class">RPG: Healer</span>
+                        <span class="p-class">Auction: Cautious</span>
+                    </div>
+                </div>
+                <div class="p-option selected" data-val="balanced" onclick="pickPersonality(this)">
+                    <div class="p-check"></div>
+                    <div class="p-icon">&#x2696;</div>
+                    <div class="p-name">Balanced</div>
+                    <div class="p-desc">Versatile mix of aggression and discipline, solid fundamentals</div>
+                    <div class="p-tags">
+                        <span class="p-class">Poker: GTO</span>
+                        <span class="p-class">RPG: Mage</span>
+                        <span class="p-class">Auction: Strategic</span>
+                    </div>
+                </div>
+                <div class="p-option" data-val="adaptive" onclick="pickPersonality(this)">
+                    <div class="p-check"></div>
+                    <div class="p-icon">&#x1F441;</div>
+                    <div class="p-name">Adaptive</div>
+                    <div class="p-desc">Reads opponents and adjusts strategy in real-time</div>
+                    <div class="p-tags">
+                        <span class="p-class">Poker: Reader</span>
+                        <span class="p-class">RPG: Rogue</span>
+                        <span class="p-class">Auction: Sniper</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="field">
+            <label>Starting Balance (MON)</label>
+            <input type="number" id="fBalance" value="1.0" step="0.1" min="0.1">
+        </div>
+        <div class="modal-btns">
+            <button class="btn btn-surface" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-purple" onclick="createAgent()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====== POKER TABLE OVERLAY ====== -->
+<div class="poker-table-overlay" id="pokerTable">
+    <div class="poker-table">
+        <div class="pt-header">
+            <div class="pt-title">
+                <span class="pt-badge">Texas Hold'em</span>
+                <span id="ptStatus">Dealing...</span>
+            </div>
+            <button class="pt-close" onclick="closePokerTable()">&times;</button>
+        </div>
+        <div class="pt-trash-talk hidden" id="ptTrashTalk">
+            <div class="trash-bubble">
+                <div class="trash-name" id="trashNameA">Agent A</div>
+                <div id="trashTextA"></div>
+            </div>
+            <div class="trash-bubble">
+                <div class="trash-name" id="trashNameB">Agent B</div>
+                <div id="trashTextB"></div>
+            </div>
+        </div>
+        <div class="pt-felt">
+            <div class="pt-players">
+                <div class="pt-player" id="ptPlayerA">
+                    <div class="pt-player-info">
+                        <div class="pt-player-avatar" id="ptAvatarA">?</div>
+                        <div>
+                            <div class="pt-player-name" id="ptNameA">Player A</div>
+                            <span class="pt-player-pos" id="ptPosA">SB</span>
+                        </div>
+                    </div>
+                    <div class="pt-cards" id="ptHandA"></div>
+                    <div class="pt-hand-name" id="ptHandNameA"></div>
+                    <div id="ptBadgeA"></div>
+                </div>
+                <div class="pt-player" id="ptPlayerB">
+                    <div class="pt-player-info">
+                        <div class="pt-player-avatar" id="ptAvatarB">?</div>
+                        <div>
+                            <div class="pt-player-name" id="ptNameB">Player B</div>
+                            <span class="pt-player-pos" id="ptPosB">BB</span>
+                        </div>
+                    </div>
+                    <div class="pt-cards" id="ptHandB"></div>
+                    <div class="pt-hand-name" id="ptHandNameB"></div>
+                    <div id="ptBadgeB"></div>
+                </div>
+            </div>
+            <div class="pt-pot" id="ptPot">
+                <span class="pt-pot-value">Pot: 0.0000 MON</span>
+            </div>
+            <div class="pt-community">
+                <div class="pt-community-label">Community Cards</div>
+                <div class="pt-cards" id="ptCommunity"></div>
+            </div>
+        </div>
+        <div class="pt-actions" id="ptActions">
+            <div class="pt-actions-title">Action Log</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ====== API ======
+const API = {
+    get: url => fetch(url).then(r => r.json()),
+    post: (url, d) => fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(d)
+    }).then(r => r.json())
+};
+
+let lastFeedLen = 0;
+let agentsCache = [];
+
+// ====== Toast Notification System ======
+function showToast(title, message, type = 'info', duration = 5000) {
+    const container = document.getElementById('toastContainer');
+    const icons = {
+        error: '\u26A0\uFE0F',
+        success: '\u2705',
+        info: '\u2139\uFE0F',
+        warning: '\u26A1',
+    };
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || icons.info}</span>
+        <div class="toast-body">
+            <div class="toast-title">${title}</div>
+            <div class="toast-msg">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.classList.add('toast-out');setTimeout(()=>this.parentElement.remove(),300)">\u00D7</button>
+    `;
+    container.appendChild(toast);
+    if (duration > 0) {
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.add('toast-out');
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, duration);
+    }
+}
+
+// ====== Agent SVG Logos ======
+const AGENT_SVGS = {
+    aggressive: `<svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 4L6 20h8v12l12-16h-8V4z" fill="#FC5555" opacity="0.9"/><path d="M18 4L6 20h8v12l12-16h-8V4z" stroke="#FF8A8A" stroke-width="1" fill="none"/></svg>`,
+    conservative: `<svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 5L5 18l13 13 13-13L18 5z" fill="#85E6FF" opacity="0.15" stroke="#85E6FF" stroke-width="1.5"/><path d="M18 10l-8 8 8 8 8-8-8-8z" fill="#85E6FF" opacity="0.3"/><circle cx="18" cy="18" r="3" fill="#85E6FF"/></svg>`,
+    balanced: `<svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 3l4 8h9l-7 5.5 2.5 8.5L18 20l-8.5 5 2.5-8.5L5 11h9l4-8z" fill="#6D51FE" opacity="0.9"/><path d="M18 3l4 8h9l-7 5.5 2.5 8.5L18 20l-8.5 5 2.5-8.5L5 11h9l4-8z" stroke="#A190FF" stroke-width="1" fill="none"/></svg>`,
+    adaptive: `<svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="12" fill="#FFAE45" opacity="0.15" stroke="#FFAE45" stroke-width="1.5"/><circle cx="18" cy="18" r="7" fill="#FFAE45" opacity="0.3"/><circle cx="18" cy="18" r="4" fill="#FFAE45" opacity="0.8"/><circle cx="18" cy="18" r="1.5" fill="#fff"/></svg>`,
+};
+
+function agentSvg(personality) { return AGENT_SVGS[personality] || AGENT_SVGS.balanced; }
+
+// ====== Poker Card Rendering ======
+const SUIT_SYMBOLS = { h: '\u2665', d: '\u2666', c: '\u2663', s: '\u2660' };
+const SUIT_COLORS = { h: 'red', d: 'red', c: 'black', s: 'black' };
+
+function parseCards(cardStr) {
+    if (!cardStr || cardStr === 'none') return [];
+    return cardStr.split(',').map(c => c.trim()).filter(c => c.length >= 2).map(c => ({
+        rank: c.slice(0, -1),
+        suit: c.slice(-1),
+    }));
+}
+
+function renderPokerCard(card) {
+    const color = SUIT_COLORS[card.suit] || 'black';
+    const symbol = SUIT_SYMBOLS[card.suit] || card.suit;
+    return `<div class="poker-card ${color}"><span class="card-rank">${card.rank}</span><span class="card-suit">${symbol}</span></div>`;
+}
+
+function renderFaceDown(n) {
+    return Array(n).fill('<div class="poker-card face-down"></div>').join('');
+}
+
+// ====== Poker Table ======
+function closePokerTable() {
+    document.getElementById('pokerTable').classList.remove('open');
+}
+
+function findAgentByAddr(addr) {
+    return agentsCache.find(a => a.full_address === addr);
+}
+
+async function showPokerTable(matchResult, agentA, agentB, autoClose = false) {
+    const overlay = document.getElementById('pokerTable');
+    overlay.classList.add('open');
+
+    // Show trash talk if available
+    const trashEl = document.getElementById('ptTrashTalk');
+    if (matchResult.trash_talk && matchResult.trash_talk.agent_a) {
+        document.getElementById('trashNameA').textContent = matchResult.trash_talk.agent_a_name || agentA.name;
+        document.getElementById('trashTextA').textContent = '"' + matchResult.trash_talk.agent_a + '"';
+        document.getElementById('trashNameB').textContent = matchResult.trash_talk.agent_b_name || agentB.name;
+        document.getElementById('trashTextB').textContent = '"' + matchResult.trash_talk.agent_b + '"';
+        trashEl.classList.remove('hidden');
+    } else {
+        trashEl.classList.add('hidden');
+    }
+
+    const handA = parseCards(matchResult.details.hand_a);
+    const handB = parseCards(matchResult.details.hand_b);
+    const community = parseCards(matchResult.details.community);
+    const rounds = matchResult.details.rounds || [];
+    const isAWinner = matchResult.winner_addr === matchResult.player_a_addr;
+
+    // Set player info
+    const pA = agentA || { name: 'Player A', personality: 'balanced' };
+    const pB = agentB || { name: 'Player B', personality: 'balanced' };
+
+    document.getElementById('ptNameA').textContent = pA.name;
+    document.getElementById('ptNameB').textContent = pB.name;
+    document.getElementById('ptAvatarA').className = 'pt-player-avatar ' + pA.personality;
+    document.getElementById('ptAvatarB').className = 'pt-player-avatar ' + pB.personality;
+    document.getElementById('ptAvatarA').innerHTML = agentSvg(pA.personality);
+    document.getElementById('ptAvatarB').innerHTML = agentSvg(pB.personality);
+    document.getElementById('ptPosA').textContent = 'SB';
+    document.getElementById('ptPosB').textContent = 'BB';
+
+    // Start with face-down cards
+    document.getElementById('ptHandA').innerHTML = renderFaceDown(2);
+    document.getElementById('ptHandB').innerHTML = renderFaceDown(2);
+    document.getElementById('ptCommunity').innerHTML = '';
+    document.getElementById('ptHandNameA').textContent = '';
+    document.getElementById('ptHandNameB').textContent = '';
+    document.getElementById('ptBadgeA').innerHTML = '';
+    document.getElementById('ptBadgeB').innerHTML = '';
+    document.getElementById('ptPot').innerHTML = '<span class="pt-pot-value">Pot: 0.0000 MON</span>';
+    document.getElementById('ptStatus').textContent = 'Dealing...';
+
+    const actionsEl = document.getElementById('ptActions');
+    actionsEl.innerHTML = '<div class="pt-actions-title">Action Log</div>';
+
+    // Animate the sequence
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+
+    // Step 1: Reveal hole cards
+    await delay(800);
+    document.getElementById('ptHandA').innerHTML = handA.map(c => renderPokerCard(c)).join('');
+    document.getElementById('ptHandB').innerHTML = handB.map(c => renderPokerCard(c)).join('');
+    document.getElementById('ptStatus').textContent = 'Pre-flop';
+
+    // Step 2: Replay actions round by round
+    const roundOrder = ['preflop', 'flop', 'turn', 'river'];
+    let currentPot = 0;
+    let folded = false;
+
+    for (const roundName of roundOrder) {
+        const roundActions = rounds.filter(r => r.round === roundName);
+        if (roundActions.length === 0) continue;
+
+        // Deal community cards at the start of each round
+        if (roundName === 'flop' && community.length >= 3) {
+            await delay(600);
+            document.getElementById('ptCommunity').innerHTML = community.slice(0, 3).map(c => renderPokerCard(c)).join('');
+            document.getElementById('ptStatus').textContent = 'Flop';
+        } else if (roundName === 'turn' && community.length >= 4) {
+            await delay(600);
+            document.getElementById('ptCommunity').innerHTML = community.slice(0, 4).map(c => renderPokerCard(c)).join('');
+            document.getElementById('ptStatus').textContent = 'Turn';
+        } else if (roundName === 'river' && community.length >= 5) {
+            await delay(600);
+            document.getElementById('ptCommunity').innerHTML = community.slice(0, 5).map(c => renderPokerCard(c)).join('');
+            document.getElementById('ptStatus').textContent = 'River';
+        }
+
+        // Animate each action
+        for (const act of roundActions) {
+            await delay(500);
+            const playerName = act.player === matchResult.player_a_addr ? pA.name : pB.name;
+            const shortName = playerName.length > 8 ? playerName.slice(0, 8) : playerName;
+            const amt = act.amount || 0;
+            if (amt > 0) currentPot += amt;
+
+            const bluffStr = act.bluff_prob > 0.2 ? `Bluff: ${(act.bluff_prob * 100).toFixed(0)}%` : '';
+
+            const row = document.createElement('div');
+            row.className = 'pt-action-row';
+            row.innerHTML = `
+                <span class="pt-action-round">${roundName}</span>
+                <span class="pt-action-player">${shortName}</span>
+                <span class="pt-action-type ${act.action}">${act.action}</span>
+                ${amt > 0 ? `<span class="pt-action-amount">${amt.toFixed(4)}</span>` : ''}
+                ${bluffStr ? `<span class="pt-action-bluff">${bluffStr}</span>` : ''}
+            `;
+            actionsEl.appendChild(row);
+            actionsEl.scrollTop = actionsEl.scrollHeight;
+
+            if (act.action === 'fold') { folded = true; break; }
+        }
+
+        // Update pot
+        document.getElementById('ptPot').innerHTML = `<span class="pt-pot-value">Pot: ${matchResult.pot.toFixed(4)} MON</span>`;
+        if (folded) break;
+    }
+
+    // Step 3: Show result
+    await delay(700);
+    document.getElementById('ptStatus').textContent = folded ? 'Fold' : 'Showdown';
+
+    if (!folded && community.length > 0) {
+        document.getElementById('ptCommunity').innerHTML = community.map(c => renderPokerCard(c)).join('');
+    }
+
+    document.getElementById('ptHandNameA').textContent = matchResult.details.hand_a_name || '';
+    document.getElementById('ptHandNameB').textContent = matchResult.details.hand_b_name || '';
+
+    document.getElementById('ptBadgeA').innerHTML = `<span class="pt-winner-badge ${isAWinner ? 'win' : 'lose'}">${isAWinner ? 'Winner' : 'Lost'}</span>`;
+    document.getElementById('ptBadgeB').innerHTML = `<span class="pt-winner-badge ${isAWinner ? 'lose' : 'win'}">${isAWinner ? 'Lost' : 'Winner'}</span>`;
+
+    // Auto-close for spectator mode
+    if (autoClose) {
+        await delay(3000);
+        closePokerTable();
+    }
+}
+
+// ====== Init ======
+document.addEventListener('DOMContentLoaded', () => {
+    refreshAll();
+    setInterval(pollFeed, 2000);
+
+    // Nav tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('page-' + tab.dataset.page).classList.add('active');
+            refreshAll();
+        });
+    });
+});
+
+// ====== Refresh ======
+async function refreshAll() {
+    try {
+        const [status, lb, hist, tState] = await Promise.all([
+            API.get('/api/status'),
+            API.get('/api/leaderboard'),
+            API.get('/api/history'),
+            API.get('/api/tournament/state'),
+        ]);
+        agentsCache = status.agents || [];
+        renderStatus(status);
+        renderAgents(status.agents);
+        renderLeaderboard(lb);
+        renderHistory(hist);
+        if (tState) renderBracket(tState);
+    } catch (e) { console.error(e); }
+}
+
+function renderStatus(s) {
+    const cl = document.getElementById('chainLabel');
+    const cd = document.getElementById('chainDot');
+    if (s.on_chain) {
+        cl.textContent = 'Monad Testnet';
+        cd.style.background = 'var(--green)';
+        cd.style.boxShadow = '0 0 8px var(--green)';
+    } else {
+        cl.textContent = 'Off-chain';
+        cd.style.background = 'var(--orange)';
+        cd.style.boxShadow = '0 0 8px var(--orange)';
+    }
+
+    document.getElementById('statMatches').textContent = s.total_matches;
+    document.getElementById('statAgents').textContent = s.agents.length;
+    document.getElementById('statMode').textContent = s.on_chain ? 'On-chain' : 'Off-chain';
+
+    // Volume
+    const vol = s.agents.reduce((acc, a) => acc + a.games * 0.05, 0);
+    document.getElementById('statVolume').textContent = vol.toFixed(2);
+
+    document.getElementById('demoBtn').disabled = s.is_running;
+    document.getElementById('tournamentBtn').disabled = s.is_running;
+    if (s.is_running) {
+        document.getElementById('demoBtn').innerHTML = '<span class="spinner"></span> Running...';
+    } else {
+        document.getElementById('demoBtn').textContent = 'Run Full Demo';
+        document.getElementById('tournamentBtn').textContent = 'Tournament';
+    }
+}
+
+function renderAgents(agents) {
+    const g = document.getElementById('agentGrid');
+    if (!agents || !agents.length) {
+        g.innerHTML = `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg><p>No agents yet.<br>Run the demo to get started.</p></div>`;
+        return;
+    }
+
+    g.innerHTML = agents.map(a => `
+        <div class="agent-card" data-addr="${a.address}">
+            <div class="agent-top">
+                <div class="agent-avatar ${a.personality}">${agentSvg(a.personality)}</div>
+                <div class="agent-info">
+                    <h3>${a.name}</h3>
+                    <span class="tag">${a.personality}</span>
+                </div>
+            </div>
+            <div class="agent-metrics">
+                <div class="metric">
+                    <div class="m-label">Balance</div>
+                    <div class="m-value">${a.balance.toFixed(4)}</div>
+                </div>
+                <div class="metric">
+                    <div class="m-label">P&L</div>
+                    <div class="m-value ${a.pnl >= 0 ? 'up' : 'down'}">${a.pnl >= 0 ? '+' : ''}${a.pnl.toFixed(4)}</div>
+                </div>
+                <div class="metric">
+                    <div class="m-label">Win Rate</div>
+                    <div class="m-value">${a.win_rate}%</div>
+                </div>
+                <div class="metric">
+                    <div class="m-label">Games</div>
+                    <div class="m-value">${a.games}</div>
+                </div>
+            </div>
+            ${a.bluffs_attempted > 0 ? `<div class="bluff-line">Bluffs: ${a.bluffs_successful}/${a.bluffs_attempted} successful</div>` : ''}
+            <div class="addr">${a.address}</div>
+        </div>
+    `).join('');
+}
+
+function renderLeaderboard(data) {
+    const el = document.getElementById('lbContent');
+    if (!data || !data.length) {
+        el.innerHTML = '<div class="empty"><p>Play some matches to see rankings.</p></div>';
+        return;
+    }
+
+    el.innerHTML = `
+        <table class="lb-table">
+            <thead><tr>
+                <th>Rank</th><th>Agent</th><th>Style</th><th>W/L</th><th>Win%</th><th>P&L</th>
+            </tr></thead>
+            <tbody>
+            ${data.map((a, i) => `
+                <tr>
+                    <td class="lb-rank ${i < 3 ? 'r' + (i+1) : ''}">${i+1}</td>
+                    <td class="lb-name">${a.name}</td>
+                    <td><span class="lb-style ${a.personality}">${a.personality}</span></td>
+                    <td>${a.wins} / ${a.games - a.wins}</td>
+                    <td>${(a.win_rate * 100).toFixed(0)}%</td>
+                    <td class="lb-pnl" style="color:${a.pnl >= 0 ? 'var(--green)' : 'var(--red)'}">
+                        ${a.pnl >= 0 ? '+' : ''}${a.pnl.toFixed(4)}
+                    </td>
+                </tr>
+            `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function renderHistory(data) {
+    const el = document.getElementById('histContent');
+    if (!data || !data.length) {
+        el.innerHTML = '<div class="empty"><p>No matches played yet.</p></div>';
+        return;
+    }
+
+    el.innerHTML = [...data].reverse().map(m => `
+        <div class="match-row">
+            <span class="match-type ${m.game_type.toLowerCase()}">${m.game_type}</span>
+            <div class="match-players">
+                <span class="winner">${m.winner}</span>
+                <span class="vs">beat</span>
+                <span>${m.loser}</span>
+            </div>
+            <span class="match-detail">${m.win_method || ''}</span>
+            <span class="match-amount">${(m.pot || m.wager).toFixed(4)} MON</span>
+        </div>
+    `).join('');
+}
+
+// ====== Feed Polling ======
+async function pollFeed() {
+    try {
+        const feed = await API.get('/api/feed');
+        if (feed.length !== lastFeedLen) {
+            lastFeedLen = feed.length;
+            renderFeed(feed);
+            refreshAll();
+        }
+    } catch (e) {}
+}
+
+function renderFeed(feed) {
+    const el = document.getElementById('feedContent');
+    el.innerHTML = [...feed].reverse().map(f => {
+        const t = new Date(f.timestamp * 1000).toLocaleTimeString();
+        return `<div class="feed-item ${f.type}">${f.message}<div class="ftime">${t}</div></div>`;
+    }).join('');
+}
+
+// ====== Spectator Mode ======
+let spectatorActive = false;
+let spectatorInterval = null;
+let isShowingPokerTable = false;
+
+function startSpectator() {
+    if (spectatorActive) return;
+    spectatorActive = true;
+    spectatorInterval = setInterval(pollSpectatorMatch, 2500);
+}
+
+function stopSpectator() {
+    spectatorActive = false;
+    if (spectatorInterval) clearInterval(spectatorInterval);
+    spectatorInterval = null;
+}
+
+async function pollSpectatorMatch() {
+    if (isShowingPokerTable) return;
+    try {
+        const match = await API.get('/api/match/latest');
+        if (match && match.game_type === 'poker' && match.details) {
+            isShowingPokerTable = true;
+            const agentA = { name: match.player_a_name, personality: match.player_a_personality };
+            const agentB = { name: match.player_b_name, personality: match.player_b_personality };
+            await showPokerTable(match, agentA, agentB, true);
+            isShowingPokerTable = false;
+            await refreshAll();
+        }
+    } catch (e) {
+        isShowingPokerTable = false;
+    }
+}
+
+// ====== Tournament ======
+let tournamentCheckInterval = null;
+
+async function runTournament() {
+    const btn = document.getElementById('tournamentBtn');
+    const btn2 = document.getElementById('tournamentBtn2');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Running...';
+    if (btn2) { btn2.disabled = true; btn2.innerHTML = '<span class="spinner"></span> Running...'; }
+
+    // Switch to tournament tab
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-page="tournament"]').classList.add('active');
+    document.getElementById('page-tournament').classList.add('active');
+
+    startSpectator();
+
+    try {
+        await API.post('/api/tournament/run', {});
+        showToast('Tournament Started', '4 agents, single elimination bracket with AI trash talk!', 'info');
+    } catch (e) {
+        showToast('Tournament Failed', e.message, 'error');
+    }
+
+    // Poll tournament state
+    tournamentCheckInterval = setInterval(async () => {
+        try {
+            const state = await API.get('/api/tournament/state');
+            if (state) {
+                renderBracket(state);
+                if (state.status === 'complete' || state.status === 'error') {
+                    clearInterval(tournamentCheckInterval);
+                    // Wait for last spectator match to finish
+                    setTimeout(() => {
+                        stopSpectator();
+                        btn.disabled = false;
+                        btn.textContent = 'Tournament';
+                        if (btn2) { btn2.disabled = false; btn2.textContent = 'Start Tournament'; }
+                        refreshAll();
+                        if (state.champion) {
+                            showToast('Tournament Complete',
+                                `${state.champion} is the champion!`, 'success', 8000);
+                        }
+                    }, 5000);
+                }
+            }
+        } catch (e) {}
+    }, 3000);
+}
+
+function renderBracket(state) {
+    const el = document.getElementById('bracketContent');
+    if (!state || !state.players) {
+        el.innerHTML = '<div class="bracket-empty"><p>Start a tournament to see the bracket.</p></div>';
+        return;
+    }
+
+    const sf = state.semi_finals;
+    const fin = state.final;
+
+    function playerHtml(name, isWinner, isEliminated, personality) {
+        let cls = 'bm-player';
+        if (isWinner) cls += ' winner';
+        else if (isEliminated) cls += ' eliminated';
+        const pers = personality ? ` <span class="lb-style ${personality}" style="font-size:9px;padding:1px 6px">${personality}</span>` : '';
+        return `<div class="${cls}">${name || '?'}${pers}</div>`;
+    }
+
+    el.innerHTML = `
+        <div class="bracket">
+            <div class="bracket-round">
+                <div class="bracket-round-title">Semi-Finals</div>
+                ${sf.map((m, i) => `
+                    <div class="bracket-match ${m.status}">
+                        ${playerHtml(m.player_a, m.winner === m.player_a, m.winner && m.winner !== m.player_a, m.pers_a)}
+                        <div class="bm-vs">${m.status === 'done' ? 'vs' : m.status === 'playing' ? 'vs' : 'vs'}</div>
+                        ${playerHtml(m.player_b, m.winner === m.player_b, m.winner && m.winner !== m.player_b, m.pers_b)}
+                        ${m.status === 'playing' ? '<div class="bm-live">LIVE</div>' : ''}
+                        ${m.winner ? `<div style="margin-top:6px;font-size:11px;color:var(--green);font-weight:600">${m.winner} advances</div>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+            <div class="bracket-lines"><div class="bracket-line"></div></div>
+            <div class="bracket-round">
+                <div class="bracket-round-title">Grand Final</div>
+                <div class="bracket-match ${fin.status}">
+                    ${playerHtml(fin.player_a, fin.winner === fin.player_a, fin.winner && fin.winner !== fin.player_a, fin.pers_a)}
+                    <div class="bm-vs">vs</div>
+                    ${playerHtml(fin.player_b, fin.winner === fin.player_b, fin.winner && fin.winner !== fin.player_b, fin.pers_b)}
+                    ${fin.status === 'playing' ? '<div class="bm-live">LIVE</div>' : ''}
+                    ${fin.winner ? `<div style="margin-top:6px;font-size:11px;color:var(--green);font-weight:600">${fin.winner} wins!</div>` : ''}
+                </div>
+            </div>
+            ${state.champion ? `
+                <div class="bracket-lines"><div class="bracket-line"></div></div>
+                <div class="bracket-champion-section">
+                    <div class="bracket-round-title">Champion</div>
+                    <div class="bracket-champion">${state.champion}</div>
+                </div>
+            ` : ''}
+        </div>
+        ${state.trash_talks && state.trash_talks.length > 0 ? `
+            <div style="margin-top:24px">
+                <div style="font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">Pre-Match Trash Talk</div>
+                ${state.trash_talks.map(t => `
+                    <div style="background:var(--bg-2);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:8px;font-size:13px;font-style:italic;color:var(--text-2)">
+                        <span style="color:var(--pink);font-weight:600;font-style:normal">${t.agent_a_name}:</span> "${t.agent_a}"
+                        <span style="color:var(--text-3);margin:0 8px">vs</span>
+                        <span style="color:var(--pink);font-weight:600;font-style:normal">${t.agent_b_name}:</span> "${t.agent_b}"
+                    </div>
+                `).join('')}
+            </div>
+        ` : ''}
+    `;
+}
+
+// ====== Actions ======
+async function runDemo() {
+    const btn = document.getElementById('demoBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Running...';
+
+    startSpectator();
+
+    try {
+        await API.post('/api/demo/run', {});
+        showToast('Demo Started', 'Running 10 matches across all game types. Poker matches will show live!', 'info');
+    } catch (e) {
+        showToast('Demo Failed', e.message, 'error');
+    }
+
+    const check = setInterval(async () => {
+        const s = await API.get('/api/status');
+        if (!s.is_running) {
+            clearInterval(check);
+            // Wait for last spectator match to finish
+            setTimeout(() => {
+                stopSpectator();
+                btn.disabled = false;
+                btn.textContent = 'Run Full Demo';
+                refreshAll();
+                showToast('Demo Complete', 'All matches finished! Check the leaderboard.', 'success');
+            }, 4000);
+        }
+    }, 3000);
+}
+
+async function runSingleMatch(gameType = 'poker') {
+    const s = await API.get('/api/status');
+    if (s.agents.length < 2) {
+        showToast('Not Enough Agents', 'You need at least 2 agents. Run the demo first or create agents manually.', 'error', 6000);
+        return;
+    }
+    // Pick two random different agents
+    const idxA = Math.floor(Math.random() * s.agents.length);
+    let idxB = Math.floor(Math.random() * s.agents.length);
+    while (idxB === idxA && s.agents.length > 1) idxB = Math.floor(Math.random() * s.agents.length);
+    const a = s.agents[idxA], b = s.agents[idxB];
+
+    showToast('Match Starting', `${a.name} vs ${b.name} \u2014 ${gameType.toUpperCase()}`, 'info', 4000);
+
+    try {
+        const r = await API.post('/api/match/run', {
+            player_a: a.full_address,
+            player_b: b.full_address,
+            game_type: gameType,
+            wager: 0.05,
+        });
+        if (r.error) {
+            showToast('Match Error', r.error, 'error');
+        } else {
+            await refreshAll();
+            showToast('Match Complete',
+                `${r.winner} beat ${r.loser} by ${r.method} \u2014 Pot: ${r.pot.toFixed(4)} MON`,
+                'success', 6000);
+
+            // Show poker table visualization
+            if (gameType === 'poker' && r.details) {
+                showPokerTable(r, a, b);
+            }
+        }
+    } catch (e) {
+        showToast('Match Error', e.message, 'error');
+    }
+}
+
+// ====== Modal ======
+function openModal() { document.getElementById('modal').classList.add('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function pickPersonality(el) {
+    document.querySelectorAll('.p-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('fPersonality').value = el.dataset.val;
+}
+
+async function createAgent() {
+    const name = document.getElementById('fName').value || 'Agent';
+    const personality = document.getElementById('fPersonality').value;
+    const balance = parseFloat(document.getElementById('fBalance').value) || 1.0;
+    try {
+        const r = await API.post('/api/agents/create', { name, personality, balance });
+        if (r.success) {
+            closeModal();
+            refreshAll();
+            showToast('Agent Created', `${name} (${personality}) joined the arena!`, 'success');
+        } else {
+            showToast('Creation Failed', r.error || 'Unknown error', 'error');
+        }
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+});
+
+document.getElementById('pokerTable').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closePokerTable();
+});
+</script>
+</body>
+</html>
