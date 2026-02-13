@@ -1192,25 +1192,58 @@
             color: var(--pink);
         }
 
-        /* ====== ROUND SELECTOR ====== */
-        .round-selector {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-left: 8px;
-            font-size: 13px;
-            color: var(--text-3);
+        /* ====== ROUND POPUP MENU ====== */
+        .match-btn-wrap {
+            position: relative;
+            display: inline-block;
         }
-        .round-selector select {
+        .round-popup {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 8px;
             background: var(--bg-2);
-            color: var(--text-1);
             border: 1px solid var(--bg-3);
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 13px;
-            cursor: pointer;
+            border-radius: var(--radius-md);
+            padding: 8px;
+            z-index: 50;
+            min-width: 140px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            animation: popIn 0.15s ease-out;
         }
-        .round-selector select:focus { outline: 1px solid var(--purple); }
+        .round-popup.open { display: block; }
+        @keyframes popIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .round-popup-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 4px 8px 8px;
+            text-align: center;
+        }
+        .round-popup button {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            background: none;
+            border: none;
+            color: var(--text-1);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 6px;
+            text-align: left;
+        }
+        .round-popup button:hover {
+            background: var(--purple-bg-hover);
+            color: var(--purple-light);
+        }
 
         /* ====== RPG BATTLE OVERLAY ====== */
         .rpg-overlay {
@@ -1717,22 +1750,30 @@
                 <button class="btn btn-purple btn-lg" id="demoBtn" onclick="runDemo()">
                     Run Full Demo
                 </button>
-                <button class="btn btn-surface btn-lg" onclick="runMultiMatch('poker')">
-                    <img src="/assets/cartes-de-poker.png" alt="Poker" style="width:26px;height:26px;vertical-align:middle;">
-                    Quick Poker
-                </button>
-                <button class="btn btn-surface btn-lg" onclick="runMultiMatch('rpg')">
-                    <img src="/assets/epee.png" alt="RPG" style="width:26px;height:26px;vertical-align:middle;">
-                    Quick RPG
-                </button>
-                <span class="round-selector">
-                    <select id="roundCount">
-                        <option value="1">1 round</option>
-                        <option value="3" selected>3 rounds</option>
-                        <option value="5">5 rounds</option>
-                        <option value="10">10 rounds</option>
-                    </select>
-                </span>
+                <div class="match-btn-wrap">
+                    <button class="btn btn-surface btn-lg" onclick="toggleRoundMenu('poker')">
+                        <img src="/assets/cartes-de-poker.png" alt="Poker" style="width:26px;height:26px;vertical-align:middle;">
+                        Quick Poker
+                    </button>
+                    <div class="round-popup" id="pokerRoundMenu">
+                        <div class="round-popup-title">Rounds</div>
+                        <button onclick="startStreamMatch('poker', 3)">3 rounds</button>
+                        <button onclick="startStreamMatch('poker', 5)">5 rounds</button>
+                        <button onclick="startStreamMatch('poker', 10)">10 rounds</button>
+                    </div>
+                </div>
+                <div class="match-btn-wrap">
+                    <button class="btn btn-surface btn-lg" onclick="toggleRoundMenu('rpg')">
+                        <img src="/assets/epee.png" alt="RPG" style="width:26px;height:26px;vertical-align:middle;">
+                        Quick RPG
+                    </button>
+                    <div class="round-popup" id="rpgRoundMenu">
+                        <div class="round-popup-title">Rounds (5 turns each)</div>
+                        <button onclick="startStreamMatch('rpg', 3)">3 rounds (15 turns)</button>
+                        <button onclick="startStreamMatch('rpg', 5)">5 rounds (25 turns)</button>
+                        <button onclick="startStreamMatch('rpg', 10)">10 rounds (50 turns)</button>
+                    </div>
+                </div>
                 <button class="btn btn-surface btn-lg" id="tournamentBtn" onclick="runTournament()">
                     <img src="/assets/coupe.png" alt="Tournament" style="width:26px;height:26px;vertical-align:middle;">
                     Tournament
@@ -2591,13 +2632,39 @@ async function runDemo() {
     }, 3000);
 }
 
-async function runMultiMatch(gameType = 'poker') {
+// ====== POPUP ROUND MENU ======
+function toggleRoundMenu(gameType) {
+    const menuId = gameType + 'RoundMenu';
+    const menu = document.getElementById(menuId);
+    // Close any other open menus
+    document.querySelectorAll('.round-popup').forEach(m => {
+        if (m.id !== menuId) m.classList.remove('open');
+    });
+    menu.classList.toggle('open');
+}
+
+// Close popup when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.match-btn-wrap')) {
+        document.querySelectorAll('.round-popup').forEach(m => m.classList.remove('open'));
+    }
+});
+
+// ====== REAL-TIME STREAMING MATCH ======
+let streamPollInterval = null;
+let streamEventOffset = 0;
+let streamMeta = null;
+let rpgState = {};  // Shared RPG state for real-time updates
+
+async function startStreamMatch(gameType, rounds) {
+    // Close popup menu
+    document.querySelectorAll('.round-popup').forEach(m => m.classList.remove('open'));
+
     const s = await API.get('/api/status');
     if (s.agents.length < 2) {
-        showToast('Not Enough Agents', 'You need at least 2 agents. Run the demo first or create agents manually.', 'error', 6000);
+        showToast('Not Enough Agents', 'Run the demo first to create agents.', 'error', 6000);
         return;
     }
-    const rounds = parseInt(document.getElementById('roundCount').value) || 1;
 
     // Pick two random different agents
     const idxA = Math.floor(Math.random() * s.agents.length);
@@ -2605,192 +2672,308 @@ async function runMultiMatch(gameType = 'poker') {
     while (idxB === idxA && s.agents.length > 1) idxB = Math.floor(Math.random() * s.agents.length);
     const a = s.agents[idxA], b = s.agents[idxB];
 
-    showToast('Match Starting', `${a.name} vs ${b.name} \u2014 ${rounds} round${rounds > 1 ? 's' : ''} of ${gameType.toUpperCase()}`, 'info', 4000);
+    showToast('Match Starting',
+        `${a.name} vs ${b.name} \u2014 ${rounds} round${rounds > 1 ? 's' : ''} of ${gameType.toUpperCase()}`,
+        'info', 4000);
 
-    for (let i = 0; i < rounds; i++) {
-        try {
-            const r = await API.post('/api/match/run', {
-                player_a: a.full_address,
-                player_b: b.full_address,
-                game_type: gameType,
-                wager: 0.05,
-            });
-            if (r.error) {
-                showToast('Match Error', r.error, 'error');
-                break;
-            }
-
-            await refreshAll();
-
-            if (rounds > 1) {
-                showToast(`Round ${i + 1}/${rounds}`,
-                    `${r.winner} beat ${r.loser} by ${r.method}`, 'success', 3000);
-            } else {
-                showToast('Match Complete',
-                    `${r.winner} beat ${r.loser} by ${r.method} \u2014 Pot: ${r.pot.toFixed(4)} MON`,
-                    'success', 6000);
-            }
-
-            // Show visualization
-            if (gameType === 'poker' && r.details) {
-                await showPokerTable(r, a, b, rounds > 1);
-                if (rounds > 1 && i < rounds - 1) await new Promise(ok => setTimeout(ok, 800));
-            } else if (gameType === 'rpg' && r.details) {
-                await showRpgBattle(r, a, b, rounds > 1);
-                if (rounds > 1 && i < rounds - 1) await new Promise(ok => setTimeout(ok, 800));
-            }
-        } catch (e) {
-            showToast('Match Error', e.message, 'error');
-            break;
+    try {
+        const r = await API.post('/api/match/start', {
+            player_a: a.full_address,
+            player_b: b.full_address,
+            game_type: gameType,
+            rounds: rounds,
+            wager: 0.05,
+        });
+        if (r.error) {
+            showToast('Match Error', r.error, 'error');
+            return;
         }
-    }
 
-    if (rounds > 1) {
-        await refreshAll();
-        showToast('Series Complete', `${rounds} rounds of ${gameType.toUpperCase()} finished!`, 'success', 5000);
+        streamMeta = r.meta;
+        streamEventOffset = 0;
+
+        // Open the appropriate overlay immediately
+        if (gameType === 'poker') {
+            initPokerOverlay(a, b);
+        } else if (gameType === 'rpg') {
+            initRpgOverlay(a, b);
+        }
+
+        // Start polling for events
+        streamPollInterval = setInterval(() => pollStreamEvents(gameType, a, b), 400);
+
+    } catch (e) {
+        showToast('Match Error', e.message, 'error');
     }
 }
 
-// ====== RPG Battle Overlay ======
+async function pollStreamEvents(gameType, agentA, agentB) {
+    try {
+        const data = await API.get(`/api/match/events?offset=${streamEventOffset}`);
+        if (!data.events || data.events.length === 0) return;
+
+        for (const evt of data.events) {
+            streamEventOffset++;
+
+            if (gameType === 'poker') {
+                handlePokerEvent(evt, agentA, agentB);
+            } else if (gameType === 'rpg') {
+                handleRpgEvent(evt, agentA, agentB);
+            }
+
+            // Handle common events
+            if (evt.type === 'round_result') {
+                showToast(`Round ${evt.round}`,
+                    `${evt.winner} beats ${evt.loser} (${evt.method})`, 'success', 3000);
+                await refreshAll();
+            }
+            if (evt.type === 'complete') {
+                clearInterval(streamPollInterval);
+                streamPollInterval = null;
+                showToast('Series Complete', `All rounds finished!`, 'success', 5000);
+                await refreshAll();
+            }
+            if (evt.type === 'error') {
+                clearInterval(streamPollInterval);
+                streamPollInterval = null;
+                showToast('Match Error', evt.message, 'error');
+            }
+        }
+    } catch (e) { /* ignore polling errors */ }
+}
+
+// ====== POKER REAL-TIME HANDLERS ======
+let pokerStreamState = {};
+
+function initPokerOverlay(agentA, agentB) {
+    const overlay = document.getElementById('pokerTable');
+    overlay.classList.add('open');
+    const pA = agentA, pB = agentB;
+
+    document.getElementById('ptNameA').textContent = pA.name;
+    document.getElementById('ptNameB').textContent = pB.name;
+    document.getElementById('ptAvatarA').className = 'pt-player-avatar ' + pA.personality;
+    document.getElementById('ptAvatarB').className = 'pt-player-avatar ' + pB.personality;
+    document.getElementById('ptAvatarA').innerHTML = agentSvg(pA.personality);
+    document.getElementById('ptAvatarB').innerHTML = agentSvg(pB.personality);
+    document.getElementById('ptPosA').textContent = 'SB';
+    document.getElementById('ptPosB').textContent = 'BB';
+    document.getElementById('ptHandA').innerHTML = renderFaceDown(2);
+    document.getElementById('ptHandB').innerHTML = renderFaceDown(2);
+    document.getElementById('ptCommunity').innerHTML = '';
+    document.getElementById('ptHandNameA').textContent = '';
+    document.getElementById('ptHandNameB').textContent = '';
+    document.getElementById('ptBadgeA').innerHTML = '';
+    document.getElementById('ptBadgeB').innerHTML = '';
+    document.getElementById('ptPot').innerHTML = '<span class="pt-pot-value">Pot: 0.0000 MON</span>';
+    document.getElementById('ptStatus').textContent = 'Waiting...';
+
+    const actionsEl = document.getElementById('ptActions');
+    actionsEl.innerHTML = '<div class="pt-actions-title">Action Log</div>';
+
+    pokerStreamState = { community: [], currentPot: 0 };
+}
+
+function handlePokerEvent(evt, agentA, agentB) {
+    if (evt.type === 'round_start') {
+        document.getElementById('ptStatus').textContent = `Round ${evt.round}/${evt.total_rounds}`;
+        document.getElementById('ptHandA').innerHTML = renderFaceDown(2);
+        document.getElementById('ptHandB').innerHTML = renderFaceDown(2);
+        document.getElementById('ptCommunity').innerHTML = '';
+        document.getElementById('ptBadgeA').innerHTML = '';
+        document.getElementById('ptBadgeB').innerHTML = '';
+        document.getElementById('ptHandNameA').textContent = '';
+        document.getElementById('ptHandNameB').textContent = '';
+        const actionsEl = document.getElementById('ptActions');
+        actionsEl.innerHTML = '<div class="pt-actions-title">Action Log \u2014 Round ' + evt.round + '</div>';
+        pokerStreamState = { community: [], currentPot: 0 };
+    }
+    else if (evt.type === 'poker_init') {
+        const handA = parseCards(evt.hand_a);
+        const handB = parseCards(evt.hand_b);
+        pokerStreamState.community = parseCards(evt.community);
+        pokerStreamState.handAName = evt.hand_a_name;
+        pokerStreamState.handBName = evt.hand_b_name;
+        pokerStreamState.playerAAddr = evt.player_a_addr;
+
+        document.getElementById('ptHandA').innerHTML = handA.map(c => renderPokerCard(c)).join('');
+        document.getElementById('ptHandB').innerHTML = handB.map(c => renderPokerCard(c)).join('');
+        document.getElementById('ptStatus').textContent = 'Pre-flop';
+    }
+    else if (evt.type === 'poker_stage') {
+        const com = pokerStreamState.community || [];
+        if (evt.community_shown > 0 && com.length >= evt.community_shown) {
+            document.getElementById('ptCommunity').innerHTML =
+                com.slice(0, evt.community_shown).map(c => renderPokerCard(c)).join('');
+        }
+        document.getElementById('ptStatus').textContent = evt.stage.charAt(0).toUpperCase() + evt.stage.slice(1);
+    }
+    else if (evt.type === 'poker_action') {
+        const shortName = evt.player_name.length > 8 ? evt.player_name.slice(0, 8) : evt.player_name;
+        const bluffStr = evt.bluff_prob > 0.2 ? `Bluff: ${(evt.bluff_prob * 100).toFixed(0)}%` : '';
+
+        const actionsEl = document.getElementById('ptActions');
+        const row = document.createElement('div');
+        row.className = 'pt-action-row';
+        row.innerHTML = `
+            <span class="pt-action-round">${evt.stage}</span>
+            <span class="pt-action-player">${shortName}</span>
+            <span class="pt-action-type ${evt.action}">${evt.action}</span>
+            ${evt.amount > 0 ? `<span class="pt-action-amount">${evt.amount.toFixed(4)}</span>` : ''}
+            ${bluffStr ? `<span class="pt-action-bluff">${bluffStr}</span>` : ''}
+        `;
+        actionsEl.appendChild(row);
+        actionsEl.scrollTop = actionsEl.scrollHeight;
+    }
+    else if (evt.type === 'poker_showdown') {
+        document.getElementById('ptStatus').textContent = 'Showdown';
+        if (pokerStreamState.community && pokerStreamState.community.length > 0) {
+            document.getElementById('ptCommunity').innerHTML =
+                pokerStreamState.community.map(c => renderPokerCard(c)).join('');
+        }
+        document.getElementById('ptHandNameA').textContent = pokerStreamState.handAName || '';
+        document.getElementById('ptHandNameB').textContent = pokerStreamState.handBName || '';
+    }
+    else if (evt.type === 'round_result') {
+        const isAWinner = evt.winner_addr === pokerStreamState.playerAAddr;
+        document.getElementById('ptBadgeA').innerHTML = `<span class="pt-winner-badge ${isAWinner ? 'win' : 'lose'}">${isAWinner ? 'Winner' : 'Lost'}</span>`;
+        document.getElementById('ptBadgeB').innerHTML = `<span class="pt-winner-badge ${isAWinner ? 'lose' : 'win'}">${isAWinner ? 'Lost' : 'Winner'}</span>`;
+        document.getElementById('ptPot').innerHTML = `<span class="pt-pot-value">Pot: ${evt.pot.toFixed(4)} MON</span>`;
+    }
+}
+
+// ====== RPG REAL-TIME HANDLERS ======
 const CLASS_ICONS = {
     warrior: '\u2694\uFE0F',
     mage: '\u{1F9D9}',
     rogue: '\u{1F5E1}\uFE0F',
     healer: '\u{1F49A}',
 };
+const CLASS_MP = { warrior: 40, mage: 100, rogue: 60, healer: 90 };
 
 function closeRpgBattle() {
     document.getElementById('rpgBattle').classList.remove('open');
 }
 
-async function showRpgBattle(matchResult, agentA, agentB, autoClose = false) {
+function initRpgOverlay(agentA, agentB) {
     const overlay = document.getElementById('rpgBattle');
     overlay.classList.add('open');
-
-    const d = matchResult.details;
-    const classA = d.class_a || 'warrior';
-    const classB = d.class_b || 'mage';
-    const maxHpA = d.max_hp_a || 100;
-    const maxHpB = d.max_hp_b || 100;
-    const turnLog = d.turn_log || [];
-    const isAWinner = matchResult.winner_addr === matchResult.player_a_addr;
-
-    const pA = agentA || { name: 'Fighter A', personality: 'balanced' };
-    const pB = agentB || { name: 'Fighter B', personality: 'balanced' };
-
-    // Set initial state
-    document.getElementById('rpgIconA').textContent = CLASS_ICONS[classA] || '\u2694\uFE0F';
-    document.getElementById('rpgIconB').textContent = CLASS_ICONS[classB] || '\u{1F9D9}';
-    document.getElementById('rpgNameA').textContent = pA.name;
-    document.getElementById('rpgNameB').textContent = pB.name;
-    document.getElementById('rpgClassA').textContent = classA.charAt(0).toUpperCase() + classA.slice(1);
-    document.getElementById('rpgClassB').textContent = classB.charAt(0).toUpperCase() + classB.slice(1);
-
-    // Reset HP/MP to full
-    let hpA = maxHpA, hpB = maxHpB;
-    let mpA = { warrior: 40, mage: 100, rogue: 60, healer: 90 }[classA] || 60;
-    let mpB = { warrior: 40, mage: 100, rogue: 60, healer: 90 }[classB] || 60;
-    const maxMpA = mpA, maxMpB = mpB;
-
-    updateRpgBars('A', hpA, maxHpA, mpA, maxMpA);
-    updateRpgBars('B', hpB, maxHpB, mpB, maxMpB);
-
+    document.getElementById('rpgNameA').textContent = agentA.name;
+    document.getElementById('rpgNameB').textContent = agentB.name;
+    document.getElementById('rpgIconA').textContent = '?';
+    document.getElementById('rpgIconB').textContent = '?';
+    document.getElementById('rpgClassA').textContent = '...';
+    document.getElementById('rpgClassB').textContent = '...';
     document.getElementById('rpgBadgeA').innerHTML = '';
     document.getElementById('rpgBadgeB').innerHTML = '';
-    document.getElementById('rpgStatus').textContent = 'Preparing...';
-
+    document.getElementById('rpgRoundStatus').textContent = 'Preparing...';
+    updateRpgBars('A', 100, 100, 50, 50);
+    updateRpgBars('B', 100, 100, 50, 50);
     const logEl = document.getElementById('rpgLog');
     logEl.innerHTML = '<div class="rpg-log-title">Battle Log</div>';
+    rpgState = {};
+}
 
-    const delay = ms => new Promise(r => setTimeout(r, ms));
-    const battlefield = document.getElementById('rpgBattlefield');
+function handleRpgEvent(evt, agentA, agentB) {
+    if (evt.type === 'round_start') {
+        document.getElementById('rpgRoundStatus').textContent = `Round ${evt.round}/${evt.total_rounds}`;
+        document.getElementById('rpgBadgeA').innerHTML = '';
+        document.getElementById('rpgBadgeB').innerHTML = '';
+        if (evt.round > 1) {
+            const logEl = document.getElementById('rpgLog');
+            const sep = document.createElement('div');
+            sep.className = 'rpg-log-title';
+            sep.textContent = `\u2014 Round ${evt.round} \u2014`;
+            logEl.appendChild(sep);
+        }
+    }
+    else if (evt.type === 'rpg_init') {
+        const classA = evt.class_a, classB = evt.class_b;
+        rpgState.classA = classA;
+        rpgState.classB = classB;
+        rpgState.maxHpA = evt.max_hp_a;
+        rpgState.maxHpB = evt.max_hp_b;
+        rpgState.hpA = evt.max_hp_a;
+        rpgState.hpB = evt.max_hp_b;
+        rpgState.maxMpA = CLASS_MP[classA] || 60;
+        rpgState.maxMpB = CLASS_MP[classB] || 60;
+        rpgState.mpA = rpgState.maxMpA;
+        rpgState.mpB = rpgState.maxMpB;
+        rpgState.playerAAddr = evt.player_a_addr;
 
-    await delay(600);
-    document.getElementById('rpgRoundStatus').textContent = 'Battle Start!';
+        document.getElementById('rpgIconA').textContent = CLASS_ICONS[classA] || '?';
+        document.getElementById('rpgIconB').textContent = CLASS_ICONS[classB] || '?';
+        document.getElementById('rpgClassA').textContent = classA.charAt(0).toUpperCase() + classA.slice(1);
+        document.getElementById('rpgClassB').textContent = classB.charAt(0).toUpperCase() + classB.slice(1);
 
-    // Animate each turn
-    for (let i = 0; i < turnLog.length; i++) {
-        const turn = turnLog[i];
-        const isA = turn.attacker && (turn.attacker === pA.name || turn.attacker.includes(classA.charAt(0).toUpperCase()));
-        // Determine which fighter based on class name match
-        const attackerIsA = turn.attacker === (classA.charAt(0).toUpperCase() + classA.slice(1));
+        updateRpgBars('A', rpgState.hpA, rpgState.maxHpA, rpgState.mpA, rpgState.maxMpA);
+        updateRpgBars('B', rpgState.hpB, rpgState.maxHpB, rpgState.mpB, rpgState.maxMpB);
+        document.getElementById('rpgRoundStatus').textContent = 'Battle Start!';
+    }
+    else if (evt.type === 'rpg_turn') {
+        const classAName = rpgState.classA ? rpgState.classA.charAt(0).toUpperCase() + rpgState.classA.slice(1) : '';
+        const attackerIsA = evt.attacker === classAName;
 
-        await delay(450);
-        document.getElementById('rpgRoundStatus').textContent = `Turn ${turn.turn || i + 1}`;
+        document.getElementById('rpgRoundStatus').textContent = `Round ${evt.round} \u2014 Turn ${evt.turn_num}`;
 
-        // Show effect text
-        let effectText = '';
-        let effectClass = '';
-        if (turn.damage && turn.damage > 0) {
-            effectText = `-${turn.damage}`;
-            effectClass = 'damage';
-            // Damage goes to the defender (opposite side)
+        // Apply effects
+        if (evt.damage && evt.damage > 0) {
             if (attackerIsA) {
-                hpB = turn.defender_hp !== undefined ? turn.defender_hp : Math.max(0, hpB - turn.damage);
+                rpgState.hpB = evt.defender_hp !== undefined ? evt.defender_hp : Math.max(0, rpgState.hpB - evt.damage);
                 shakeElement('rpgFighterB');
-                spawnEffect('rpgFighterB', effectText, effectClass);
+                spawnEffect('rpgFighterB', `-${evt.damage}`, 'damage');
             } else {
-                hpA = turn.defender_hp !== undefined ? turn.defender_hp : Math.max(0, hpA - turn.damage);
+                rpgState.hpA = evt.defender_hp !== undefined ? evt.defender_hp : Math.max(0, rpgState.hpA - evt.damage);
                 shakeElement('rpgFighterA');
-                spawnEffect('rpgFighterA', effectText, effectClass);
+                spawnEffect('rpgFighterA', `-${evt.damage}`, 'damage');
             }
-        } else if (turn.effect && turn.effect.includes('heal')) {
-            const healMatch = turn.effect.match(/(\d+)/);
-            effectText = `+${healMatch ? healMatch[1] : '?'} HP`;
-            effectClass = 'heal';
+        } else if (evt.effect && evt.effect.includes('heal')) {
+            const healMatch = evt.effect.match(/(\d+)/);
+            const healAmt = parseInt(healMatch?.[1] || 0);
             if (attackerIsA) {
-                spawnEffect('rpgFighterA', effectText, effectClass);
-                hpA = Math.min(maxHpA, hpA + parseInt(healMatch?.[1] || 0));
+                rpgState.hpA = Math.min(rpgState.maxHpA, rpgState.hpA + healAmt);
+                spawnEffect('rpgFighterA', `+${healAmt} HP`, 'heal');
             } else {
-                spawnEffect('rpgFighterB', effectText, effectClass);
-                hpB = Math.min(maxHpB, hpB + parseInt(healMatch?.[1] || 0));
+                rpgState.hpB = Math.min(rpgState.maxHpB, rpgState.hpB + healAmt);
+                spawnEffect('rpgFighterB', `+${healAmt} HP`, 'heal');
             }
-        } else if (turn.effect && turn.effect.includes('defend')) {
-            effectText = 'DEFEND';
-            effectClass = 'buff';
-            spawnEffect(attackerIsA ? 'rpgFighterA' : 'rpgFighterB', effectText, effectClass);
-        } else if (turn.debuff) {
-            effectText = turn.debuff;
-            effectClass = 'damage';
-            spawnEffect(attackerIsA ? 'rpgFighterB' : 'rpgFighterA', effectText, effectClass);
-        } else if (turn.dot) {
-            effectText = 'POISON';
-            effectClass = 'damage';
-            spawnEffect(attackerIsA ? 'rpgFighterB' : 'rpgFighterA', effectText, effectClass);
+        } else if (evt.effect && evt.effect.includes('defend')) {
+            spawnEffect(attackerIsA ? 'rpgFighterA' : 'rpgFighterB', 'DEFEND', 'buff');
+        } else if (evt.debuff) {
+            spawnEffect(attackerIsA ? 'rpgFighterB' : 'rpgFighterA', evt.debuff, 'damage');
+        } else if (evt.dot) {
+            spawnEffect(attackerIsA ? 'rpgFighterB' : 'rpgFighterA', 'POISON', 'damage');
         }
 
-        updateRpgBars('A', hpA, maxHpA, mpA, maxMpA);
-        updateRpgBars('B', hpB, maxHpB, mpB, maxMpB);
+        updateRpgBars('A', rpgState.hpA, rpgState.maxHpA, rpgState.mpA, rpgState.maxMpA);
+        updateRpgBars('B', rpgState.hpB, rpgState.maxHpB, rpgState.mpB, rpgState.maxMpB);
 
         // Add to log
+        const logEl = document.getElementById('rpgLog');
         const row = document.createElement('div');
         row.className = 'rpg-log-row';
-        const dmgStr = turn.damage ? `<span class="rpg-log-effect damage">-${turn.damage} HP</span>` :
-                       turn.effect ? `<span class="rpg-log-effect heal">${turn.effect}</span>` : '';
+        const dmgStr = evt.damage ? `<span class="rpg-log-effect damage">-${evt.damage} HP</span>` :
+                       evt.effect ? `<span class="rpg-log-effect heal">${evt.effect}</span>` : '';
         row.innerHTML = `
-            <span class="rpg-log-turn">T${turn.turn || i + 1}</span>
-            <span class="rpg-log-name">${turn.attacker || '?'}</span>
-            <span class="rpg-log-ability">${turn.ability || '?'}</span>
+            <span class="rpg-log-turn">R${evt.round}T${evt.turn_num}</span>
+            <span class="rpg-log-name">${evt.attacker || '?'}</span>
+            <span class="rpg-log-ability">${evt.ability || '?'}</span>
             ${dmgStr}
         `;
         logEl.appendChild(row);
         logEl.scrollTop = logEl.scrollHeight;
     }
-
-    // Show result
-    await delay(600);
-    const winMethod = matchResult.method || d.win_method || '';
-    document.getElementById('rpgRoundStatus').textContent = isAWinner ? `${pA.name} Wins!` : `${pB.name} Wins!`;
-    document.getElementById('rpgBadgeA').innerHTML = `<span class="rpg-winner-badge ${isAWinner ? 'win' : 'lose'}">${isAWinner ? 'Winner' : winMethod === 'KO' ? 'KO' : 'Lost'}</span>`;
-    document.getElementById('rpgBadgeB').innerHTML = `<span class="rpg-winner-badge ${isAWinner ? 'lose' : 'win'}">${isAWinner ? (winMethod === 'KO' ? 'KO' : 'Lost') : 'Winner'}</span>`;
-
-    // Final HP
-    updateRpgBars('A', d.final_hp_a, maxHpA, 0, maxMpA);
-    updateRpgBars('B', d.final_hp_b, maxHpB, 0, maxMpB);
-
-    if (autoClose) {
-        await delay(3000);
-        closeRpgBattle();
+    else if (evt.type === 'rpg_end') {
+        updateRpgBars('A', evt.final_hp_a, rpgState.maxHpA, 0, rpgState.maxMpA);
+        updateRpgBars('B', evt.final_hp_b, rpgState.maxHpB, 0, rpgState.maxMpB);
+        rpgState.hpA = evt.final_hp_a;
+        rpgState.hpB = evt.final_hp_b;
+    }
+    else if (evt.type === 'round_result') {
+        const isAWinner = evt.winner_addr === rpgState.playerAAddr;
+        document.getElementById('rpgBadgeA').innerHTML = `<span class="rpg-winner-badge ${isAWinner ? 'win' : 'lose'}">${isAWinner ? 'Winner' : evt.method === 'KO' ? 'KO' : 'Lost'}</span>`;
+        document.getElementById('rpgBadgeB').innerHTML = `<span class="rpg-winner-badge ${isAWinner ? 'lose' : 'win'}">${isAWinner ? (evt.method === 'KO' ? 'KO' : 'Lost') : 'Winner'}</span>`;
+        document.getElementById('rpgRoundStatus').textContent = `${evt.winner} wins Round ${evt.round}!`;
     }
 }
 

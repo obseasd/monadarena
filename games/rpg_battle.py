@@ -165,9 +165,11 @@ class RPGBattleGame(GameBase):
 
     MAX_TURNS = 20
 
-    def __init__(self, strategy_engines: dict = None, class_overrides: dict = None):
+    def __init__(self, strategy_engines: dict = None, class_overrides: dict = None, max_turns: int = None):
         self.strategy_engines = strategy_engines or {}
         self.class_overrides = class_overrides or {}
+        if max_turns is not None:
+            self.MAX_TURNS = max_turns
         self.fighters: dict[str, Fighter] = {}
         self.turn_log: list[dict] = []
         self.reasoning_log: list[dict] = []

@@ -31,6 +31,10 @@ is_running = False
 completed_matches: list[dict] = []
 tournament_state: dict | None = None
 
+# Real-time match event streaming
+match_events: list[dict] = []
+match_meta: dict | None = None
+
 
 def get_arena() -> ArenaManager:
     """Get or create the arena manager."""
@@ -221,6 +225,239 @@ def api_run_match():
         is_running = False
         add_feed_event("error", str(e))
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/match/start", methods=["POST"])
+def api_start_match():
+    """Start a match in background with real-time event streaming."""
+    global is_running, match_events, match_meta
+    if is_running:
+        return jsonify({"error": "A match is already running"}), 409
+
+    data = request.json
+    player_a = data.get("player_a")
+    player_b = data.get("player_b")
+    game_type = data.get("game_type", "poker")
+    wager = float(data.get("wager", 0.05))
+    num_rounds = int(data.get("rounds", 3))
+
+    mgr = get_arena()
+    if not player_a or not player_b:
+        return jsonify({"error": "Need both player_a and player_b addresses"}), 400
+
+    agent_a = mgr.agents.get(player_a)
+    agent_b = mgr.agents.get(player_b)
+    if not agent_a or not agent_b:
+        return jsonify({"error": "Both players must be registered agents"}), 400
+
+    # Reset event queue
+    match_events = []
+    match_meta = {
+        "game_type": game_type,
+        "player_a": player_a,
+        "player_b": player_b,
+        "player_a_name": agent_a.name,
+        "player_b_name": agent_b.name,
+        "player_a_personality": agent_a.personality,
+        "player_b_personality": agent_b.personality,
+        "num_rounds": num_rounds,
+        "wager": wager,
+        "status": "running",
+    }
+    is_running = True
+
+    thread = threading.Thread(
+        target=_run_streaming_match,
+        args=(player_a, player_b, game_type, wager, num_rounds),
+        daemon=True,
+    )
+    thread.start()
+
+    return jsonify({"success": True, "meta": match_meta})
+
+
+@app.route("/api/match/events")
+def api_match_events():
+    """Get match events since offset for real-time animation."""
+    offset = int(request.args.get("offset", 0))
+    events = match_events[offset:]
+    return jsonify({
+        "events": events,
+        "total": len(match_events),
+        "meta": match_meta,
+    })
+
+
+def _run_streaming_match(player_a, player_b, game_type, wager, num_rounds):
+    """Run match(es) in background, pushing events for real-time frontend."""
+    global is_running, match_meta
+    mgr = get_arena()
+    type_map = {"poker": GameType.POKER, "auction": GameType.AUCTION, "rpg": GameType.RPG_BATTLE}
+    gt = type_map.get(game_type, GameType.POKER)
+
+    try:
+        for round_idx in range(num_rounds):
+            # Emit round start
+            match_events.append({
+                "type": "round_start",
+                "round": round_idx + 1,
+                "total_rounds": num_rounds,
+                "game_type": game_type,
+            })
+            add_feed_event("match_start",
+                f"Round {round_idx + 1}/{num_rounds} \u2014 {game_type.upper()} | Wager: {wager:.4f} MON")
+
+            # RPG: 5 turns per round
+            rpg_turns = 5 if game_type == "rpg" else None
+            result = mgr.run_match(player_a, player_b, gt, wager, rpg_max_turns=rpg_turns)
+
+            winner_name = mgr.agents[result.winner].name
+            loser_name = mgr.agents[result.loser].name
+            method = result.details.get("win_method", "")
+
+            # Emit game-specific events with delays for animation
+            if game_type == "poker":
+                _stream_poker_events(result, player_a, player_b, round_idx + 1, num_rounds)
+            elif game_type == "rpg":
+                _stream_rpg_events(result, player_a, player_b, round_idx + 1, num_rounds)
+
+            # Emit round result
+            match_events.append({
+                "type": "round_result",
+                "round": round_idx + 1,
+                "winner": winner_name,
+                "loser": loser_name,
+                "winner_addr": result.winner,
+                "loser_addr": result.loser,
+                "method": method,
+                "pot": result.details.get("pot", 0),
+            })
+            add_feed_event("match_result",
+                f"Round {round_idx + 1}: {winner_name} beats {loser_name} ({method})")
+
+            if round_idx < num_rounds - 1:
+                time.sleep(1.0)  # Pause between rounds
+
+        match_meta["status"] = "complete"
+        match_events.append({"type": "complete"})
+    except Exception as e:
+        logger.error(f"Streaming match error: {e}")
+        match_events.append({"type": "error", "message": str(e)})
+        match_meta["status"] = "error"
+        add_feed_event("error", str(e))
+    finally:
+        is_running = False
+
+
+def _stream_poker_events(result, player_a, player_b, round_num, total_rounds):
+    """Push poker events with delays for real-time animation."""
+    mgr = get_arena()
+    name_a = mgr.agents[player_a].name
+    name_b = mgr.agents[player_b].name
+
+    # Init event with hands and setup
+    match_events.append({
+        "type": "poker_init",
+        "round": round_num,
+        "hand_a": result.details.get("hand_a", ""),
+        "hand_b": result.details.get("hand_b", ""),
+        "hand_a_name": result.details.get("hand_a_name", ""),
+        "hand_b_name": result.details.get("hand_b_name", ""),
+        "community": result.details.get("community", ""),
+        "player_a_addr": player_a,
+        "player_b_addr": player_b,
+    })
+    time.sleep(0.6)
+
+    # Stream each action
+    rounds_data = result.details.get("rounds", [])
+    current_stage = ""
+    community = result.details.get("community", "").split(", ") if result.details.get("community") else []
+
+    for action in rounds_data:
+        stage = action.get("round", "")
+        if stage != current_stage:
+            current_stage = stage
+            # Emit stage change with community cards
+            cards_shown = 0
+            if stage == "flop":
+                cards_shown = 3
+            elif stage == "turn":
+                cards_shown = 4
+            elif stage == "river":
+                cards_shown = 5
+            match_events.append({
+                "type": "poker_stage",
+                "stage": stage,
+                "community_shown": cards_shown,
+            })
+            add_feed_event("poker_round",
+                f"R{round_num} \u2014 {stage.upper()}")
+            time.sleep(0.4)
+
+        # Emit action
+        player_name = name_a if action.get("player") == player_a else name_b
+        match_events.append({
+            "type": "poker_action",
+            "stage": stage,
+            "player": action.get("player", ""),
+            "player_name": player_name,
+            "action": action.get("action", ""),
+            "amount": action.get("amount", 0),
+            "bluff_prob": action.get("bluff_prob", 0),
+        })
+        time.sleep(0.5)
+
+    # Showdown
+    match_events.append({"type": "poker_showdown", "round": round_num})
+    time.sleep(0.3)
+
+
+def _stream_rpg_events(result, player_a, player_b, round_num, total_rounds):
+    """Push RPG events with delays for real-time animation."""
+    mgr = get_arena()
+
+    # Init event
+    match_events.append({
+        "type": "rpg_init",
+        "round": round_num,
+        "class_a": result.details.get("class_a", ""),
+        "class_b": result.details.get("class_b", ""),
+        "max_hp_a": result.details.get("max_hp_a", 100),
+        "max_hp_b": result.details.get("max_hp_b", 100),
+        "player_a_addr": player_a,
+        "player_b_addr": player_b,
+    })
+    time.sleep(0.5)
+
+    # Stream each turn
+    turn_log = result.details.get("turn_log", [])
+    for i, turn in enumerate(turn_log):
+        match_events.append({
+            "type": "rpg_turn",
+            "round": round_num,
+            "turn_num": turn.get("turn", i + 1),
+            "attacker": turn.get("attacker", ""),
+            "ability": turn.get("ability", ""),
+            "ability_type": turn.get("type", ""),
+            "damage": turn.get("damage", 0),
+            "defender_hp": turn.get("defender_hp"),
+            "effect": turn.get("effect", ""),
+            "debuff": turn.get("debuff", ""),
+            "dot": turn.get("dot", ""),
+        })
+        add_feed_event("rpg_turn",
+            f"R{round_num} T{turn.get('turn', i+1)} \u2014 {turn.get('attacker', '?')} uses {turn.get('ability', '?')}")
+        time.sleep(0.5)
+
+    # Battle end
+    match_events.append({
+        "type": "rpg_end",
+        "round": round_num,
+        "final_hp_a": result.details.get("final_hp_a", 0),
+        "final_hp_b": result.details.get("final_hp_b", 0),
+    })
+    time.sleep(0.3)
 
 
 @app.route("/api/demo/run", methods=["POST"])
