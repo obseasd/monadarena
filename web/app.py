@@ -178,8 +178,34 @@ def api_run_match():
             ))
 
         is_running = False
+
+        # Build game-type-specific details
+        details = {}
+        if gt == GameType.POKER:
+            details = {
+                "hand_a": result.details.get("hand_a", ""),
+                "hand_b": result.details.get("hand_b", ""),
+                "hand_a_name": result.details.get("hand_a_name", ""),
+                "hand_b_name": result.details.get("hand_b_name", ""),
+                "community": result.details.get("community", ""),
+                "rounds": result.details.get("rounds", []),
+                "rounds_count": len(result.details.get("rounds", [])),
+            }
+        elif gt == GameType.RPG_BATTLE:
+            details = {
+                "class_a": result.details.get("class_a", ""),
+                "class_b": result.details.get("class_b", ""),
+                "final_hp_a": result.details.get("final_hp_a", 0),
+                "final_hp_b": result.details.get("final_hp_b", 0),
+                "max_hp_a": result.details.get("max_hp_a", 100),
+                "max_hp_b": result.details.get("max_hp_b", 100),
+                "turns": result.details.get("turns", 0),
+                "turn_log": result.details.get("turn_log", []),
+            }
+
         return jsonify({
             "success": True,
+            "game_type": game_type,
             "winner": winner_name,
             "loser": loser_name,
             "winner_addr": result.winner,
@@ -188,15 +214,7 @@ def api_run_match():
             "player_b_addr": player_b,
             "method": method,
             "pot": result.details.get("pot", 0),
-            "details": {
-                "hand_a": result.details.get("hand_a", ""),
-                "hand_b": result.details.get("hand_b", ""),
-                "hand_a_name": result.details.get("hand_a_name", ""),
-                "hand_b_name": result.details.get("hand_b_name", ""),
-                "community": result.details.get("community", ""),
-                "rounds": result.details.get("rounds", []),
-                "rounds_count": len(result.details.get("rounds", [])),
-            },
+            "details": details,
         })
 
     except Exception as e:

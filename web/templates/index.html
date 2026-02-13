@@ -1192,6 +1192,309 @@
             color: var(--pink);
         }
 
+        /* ====== ROUND SELECTOR ====== */
+        .round-selector {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+            font-size: 13px;
+            color: var(--text-3);
+        }
+        .round-selector select {
+            background: var(--bg-2);
+            color: var(--text-1);
+            border: 1px solid var(--bg-3);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .round-selector select:focus { outline: 1px solid var(--purple); }
+
+        /* ====== RPG BATTLE OVERLAY ====== */
+        .rpg-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(12px);
+            z-index: 150;
+            align-items: center;
+            justify-content: center;
+        }
+        .rpg-overlay.open { display: flex; }
+
+        .rpg-arena {
+            width: 760px;
+            max-width: 95vw;
+            background: var(--bg-1);
+            border-radius: var(--radius-lg);
+            padding: 0;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+            overflow: hidden;
+            animation: showdownIn 0.4s ease-out;
+        }
+
+        .rpg-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--bg-2);
+        }
+
+        .rpg-title {
+            font-size: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rpg-badge {
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: rgba(220, 38, 38, 0.15);
+            color: #f87171;
+        }
+
+        .rpg-close {
+            background: none;
+            border: none;
+            color: var(--text-3);
+            font-size: 22px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+        .rpg-close:hover { color: var(--text-1); }
+
+        /* Battlefield */
+        .rpg-battlefield {
+            background: radial-gradient(ellipse at center, #1a1a3e 0%, #0d0d1e 100%);
+            border: 3px solid #3a3a6a;
+            border-radius: var(--radius-md);
+            margin: 20px;
+            padding: 24px;
+            position: relative;
+            min-height: 280px;
+        }
+
+        .rpg-fighters {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .rpg-fighter {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 160px;
+        }
+
+        .rpg-fighter-icon {
+            font-size: 48px;
+            line-height: 1;
+            animation: rpgIdle 2s ease-in-out infinite;
+        }
+
+        @keyframes rpgIdle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        .rpg-fighter-name {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .rpg-fighter-class {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-3);
+        }
+
+        .rpg-hp-bar {
+            width: 140px;
+            height: 14px;
+            background: var(--bg-3);
+            border-radius: 7px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .rpg-hp-fill {
+            height: 100%;
+            border-radius: 7px;
+            transition: width 0.5s ease-out;
+            background: linear-gradient(90deg, #22c55e, #4ade80);
+        }
+        .rpg-hp-fill.low { background: linear-gradient(90deg, #f97316, #fb923c); }
+        .rpg-hp-fill.critical { background: linear-gradient(90deg, #dc2626, #f87171); }
+
+        .rpg-hp-text {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-2);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .rpg-mp-bar {
+            width: 140px;
+            height: 8px;
+            background: var(--bg-3);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .rpg-mp-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease-out;
+            background: linear-gradient(90deg, #6366f1, #818cf8);
+        }
+
+        .rpg-mp-text {
+            font-size: 10px;
+            color: #818cf8;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .rpg-vs {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--text-3);
+            opacity: 0.4;
+            align-self: center;
+        }
+
+        .rpg-winner-badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .rpg-winner-badge.win { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .rpg-winner-badge.lose { background: rgba(220, 38, 38, 0.15); color: #f87171; }
+
+        .rpg-center {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .rpg-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background: rgba(99, 102, 241, 0.12);
+            font-size: 14px;
+            font-weight: 700;
+            color: #818cf8;
+        }
+
+        /* Action effect animation */
+        .rpg-effect {
+            position: absolute;
+            font-size: 20px;
+            font-weight: 900;
+            animation: rpgHit 0.8s ease-out forwards;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .rpg-effect.damage { color: #f87171; }
+        .rpg-effect.heal { color: #4ade80; }
+        .rpg-effect.buff { color: #818cf8; }
+
+        @keyframes rpgHit {
+            0% { opacity: 1; transform: translateY(0) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
+        }
+
+        @keyframes rpgShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px); }
+            40% { transform: translateX(6px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        .rpg-shake { animation: rpgShake 0.4s ease-out; }
+
+        /* Turn log */
+        .rpg-log {
+            padding: 16px 24px 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .rpg-log::-webkit-scrollbar { width: 4px; }
+        .rpg-log::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 4px; }
+
+        .rpg-log-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 10px;
+        }
+
+        .rpg-log-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 0;
+            font-size: 13px;
+            border-bottom: 1px solid var(--bg-2);
+            animation: feedIn 0.3s ease-out backwards;
+        }
+        .rpg-log-row:last-child { border-bottom: none; }
+
+        .rpg-log-turn {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 5px;
+            background: var(--bg-2);
+            color: var(--text-3);
+            flex-shrink: 0;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .rpg-log-name {
+            font-weight: 600;
+            min-width: 60px;
+        }
+
+        .rpg-log-ability {
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 12px;
+            color: var(--purple-light);
+        }
+
+        .rpg-log-effect {
+            margin-left: auto;
+            font-size: 12px;
+            color: var(--text-3);
+        }
+        .rpg-log-effect.damage { color: #f87171; }
+        .rpg-log-effect.heal { color: #4ade80; }
+
         /* ====== TRASH TALK ====== */
         .pt-trash-talk {
             display: flex;
@@ -1414,14 +1717,22 @@
                 <button class="btn btn-purple btn-lg" id="demoBtn" onclick="runDemo()">
                     Run Full Demo
                 </button>
-                <button class="btn btn-surface btn-lg" onclick="runSingleMatch('poker')">
+                <button class="btn btn-surface btn-lg" onclick="runMultiMatch('poker')">
                     <img src="/assets/cartes-de-poker.png" alt="Poker" style="width:26px;height:26px;vertical-align:middle;">
                     Quick Poker
                 </button>
-                <button class="btn btn-surface btn-lg" onclick="runSingleMatch('rpg')">
+                <button class="btn btn-surface btn-lg" onclick="runMultiMatch('rpg')">
                     <img src="/assets/epee.png" alt="RPG" style="width:26px;height:26px;vertical-align:middle;">
                     Quick RPG
                 </button>
+                <span class="round-selector">
+                    <select id="roundCount">
+                        <option value="1">1 round</option>
+                        <option value="3" selected>3 rounds</option>
+                        <option value="5">5 rounds</option>
+                        <option value="10">10 rounds</option>
+                    </select>
+                </span>
                 <button class="btn btn-surface btn-lg" id="tournamentBtn" onclick="runTournament()">
                     <img src="/assets/coupe.png" alt="Tournament" style="width:26px;height:26px;vertical-align:middle;">
                     Tournament
@@ -1655,6 +1966,50 @@
         </div>
         <div class="pt-actions" id="ptActions">
             <div class="pt-actions-title">Action Log</div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== RPG BATTLE OVERLAY ====== -->
+<div class="rpg-overlay" id="rpgBattle" onclick="if(event.target===event.currentTarget)closeRpgBattle()">
+    <div class="rpg-arena">
+        <div class="rpg-header">
+            <div class="rpg-title">
+                <span class="rpg-badge">RPG Battle</span>
+                <span id="rpgStatus">Preparing...</span>
+            </div>
+            <button class="rpg-close" onclick="closeRpgBattle()">&times;</button>
+        </div>
+        <div class="rpg-battlefield" id="rpgBattlefield">
+            <div class="rpg-fighters">
+                <div class="rpg-fighter" id="rpgFighterA">
+                    <div class="rpg-fighter-icon" id="rpgIconA"></div>
+                    <div class="rpg-fighter-name" id="rpgNameA">Fighter A</div>
+                    <div class="rpg-fighter-class" id="rpgClassA">Warrior</div>
+                    <div class="rpg-hp-text" id="rpgHpTextA">HP: 120/120</div>
+                    <div class="rpg-hp-bar"><div class="rpg-hp-fill" id="rpgHpA" style="width:100%"></div></div>
+                    <div class="rpg-mp-text" id="rpgMpTextA">MP: 40/40</div>
+                    <div class="rpg-mp-bar"><div class="rpg-mp-fill" id="rpgMpA" style="width:100%"></div></div>
+                    <div id="rpgBadgeA"></div>
+                </div>
+                <div class="rpg-vs">VS</div>
+                <div class="rpg-fighter" id="rpgFighterB">
+                    <div class="rpg-fighter-icon" id="rpgIconB"></div>
+                    <div class="rpg-fighter-name" id="rpgNameB">Fighter B</div>
+                    <div class="rpg-fighter-class" id="rpgClassB">Mage</div>
+                    <div class="rpg-hp-text" id="rpgHpTextB">HP: 80/80</div>
+                    <div class="rpg-hp-bar"><div class="rpg-hp-fill" id="rpgHpB" style="width:100%"></div></div>
+                    <div class="rpg-mp-text" id="rpgMpTextB">MP: 100/100</div>
+                    <div class="rpg-mp-bar"><div class="rpg-mp-fill" id="rpgMpB" style="width:100%"></div></div>
+                    <div id="rpgBadgeB"></div>
+                </div>
+            </div>
+            <div class="rpg-center">
+                <div class="rpg-status" id="rpgRoundStatus">Turn 1</div>
+            </div>
+        </div>
+        <div class="rpg-log" id="rpgLog">
+            <div class="rpg-log-title">Battle Log</div>
         </div>
     </div>
 </div>
@@ -2236,43 +2591,239 @@ async function runDemo() {
     }, 3000);
 }
 
-async function runSingleMatch(gameType = 'poker') {
+async function runMultiMatch(gameType = 'poker') {
     const s = await API.get('/api/status');
     if (s.agents.length < 2) {
         showToast('Not Enough Agents', 'You need at least 2 agents. Run the demo first or create agents manually.', 'error', 6000);
         return;
     }
+    const rounds = parseInt(document.getElementById('roundCount').value) || 1;
+
     // Pick two random different agents
     const idxA = Math.floor(Math.random() * s.agents.length);
     let idxB = Math.floor(Math.random() * s.agents.length);
     while (idxB === idxA && s.agents.length > 1) idxB = Math.floor(Math.random() * s.agents.length);
     const a = s.agents[idxA], b = s.agents[idxB];
 
-    showToast('Match Starting', `${a.name} vs ${b.name} \u2014 ${gameType.toUpperCase()}`, 'info', 4000);
+    showToast('Match Starting', `${a.name} vs ${b.name} \u2014 ${rounds} round${rounds > 1 ? 's' : ''} of ${gameType.toUpperCase()}`, 'info', 4000);
 
-    try {
-        const r = await API.post('/api/match/run', {
-            player_a: a.full_address,
-            player_b: b.full_address,
-            game_type: gameType,
-            wager: 0.05,
-        });
-        if (r.error) {
-            showToast('Match Error', r.error, 'error');
-        } else {
-            await refreshAll();
-            showToast('Match Complete',
-                `${r.winner} beat ${r.loser} by ${r.method} \u2014 Pot: ${r.pot.toFixed(4)} MON`,
-                'success', 6000);
-
-            // Show poker table visualization
-            if (gameType === 'poker' && r.details) {
-                showPokerTable(r, a, b);
+    for (let i = 0; i < rounds; i++) {
+        try {
+            const r = await API.post('/api/match/run', {
+                player_a: a.full_address,
+                player_b: b.full_address,
+                game_type: gameType,
+                wager: 0.05,
+            });
+            if (r.error) {
+                showToast('Match Error', r.error, 'error');
+                break;
             }
+
+            await refreshAll();
+
+            if (rounds > 1) {
+                showToast(`Round ${i + 1}/${rounds}`,
+                    `${r.winner} beat ${r.loser} by ${r.method}`, 'success', 3000);
+            } else {
+                showToast('Match Complete',
+                    `${r.winner} beat ${r.loser} by ${r.method} \u2014 Pot: ${r.pot.toFixed(4)} MON`,
+                    'success', 6000);
+            }
+
+            // Show visualization
+            if (gameType === 'poker' && r.details) {
+                await showPokerTable(r, a, b, rounds > 1);
+                if (rounds > 1 && i < rounds - 1) await new Promise(ok => setTimeout(ok, 800));
+            } else if (gameType === 'rpg' && r.details) {
+                await showRpgBattle(r, a, b, rounds > 1);
+                if (rounds > 1 && i < rounds - 1) await new Promise(ok => setTimeout(ok, 800));
+            }
+        } catch (e) {
+            showToast('Match Error', e.message, 'error');
+            break;
         }
-    } catch (e) {
-        showToast('Match Error', e.message, 'error');
     }
+
+    if (rounds > 1) {
+        await refreshAll();
+        showToast('Series Complete', `${rounds} rounds of ${gameType.toUpperCase()} finished!`, 'success', 5000);
+    }
+}
+
+// ====== RPG Battle Overlay ======
+const CLASS_ICONS = {
+    warrior: '\u2694\uFE0F',
+    mage: '\u{1F9D9}',
+    rogue: '\u{1F5E1}\uFE0F',
+    healer: '\u{1F49A}',
+};
+
+function closeRpgBattle() {
+    document.getElementById('rpgBattle').classList.remove('open');
+}
+
+async function showRpgBattle(matchResult, agentA, agentB, autoClose = false) {
+    const overlay = document.getElementById('rpgBattle');
+    overlay.classList.add('open');
+
+    const d = matchResult.details;
+    const classA = d.class_a || 'warrior';
+    const classB = d.class_b || 'mage';
+    const maxHpA = d.max_hp_a || 100;
+    const maxHpB = d.max_hp_b || 100;
+    const turnLog = d.turn_log || [];
+    const isAWinner = matchResult.winner_addr === matchResult.player_a_addr;
+
+    const pA = agentA || { name: 'Fighter A', personality: 'balanced' };
+    const pB = agentB || { name: 'Fighter B', personality: 'balanced' };
+
+    // Set initial state
+    document.getElementById('rpgIconA').textContent = CLASS_ICONS[classA] || '\u2694\uFE0F';
+    document.getElementById('rpgIconB').textContent = CLASS_ICONS[classB] || '\u{1F9D9}';
+    document.getElementById('rpgNameA').textContent = pA.name;
+    document.getElementById('rpgNameB').textContent = pB.name;
+    document.getElementById('rpgClassA').textContent = classA.charAt(0).toUpperCase() + classA.slice(1);
+    document.getElementById('rpgClassB').textContent = classB.charAt(0).toUpperCase() + classB.slice(1);
+
+    // Reset HP/MP to full
+    let hpA = maxHpA, hpB = maxHpB;
+    let mpA = { warrior: 40, mage: 100, rogue: 60, healer: 90 }[classA] || 60;
+    let mpB = { warrior: 40, mage: 100, rogue: 60, healer: 90 }[classB] || 60;
+    const maxMpA = mpA, maxMpB = mpB;
+
+    updateRpgBars('A', hpA, maxHpA, mpA, maxMpA);
+    updateRpgBars('B', hpB, maxHpB, mpB, maxMpB);
+
+    document.getElementById('rpgBadgeA').innerHTML = '';
+    document.getElementById('rpgBadgeB').innerHTML = '';
+    document.getElementById('rpgStatus').textContent = 'Preparing...';
+
+    const logEl = document.getElementById('rpgLog');
+    logEl.innerHTML = '<div class="rpg-log-title">Battle Log</div>';
+
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+    const battlefield = document.getElementById('rpgBattlefield');
+
+    await delay(600);
+    document.getElementById('rpgRoundStatus').textContent = 'Battle Start!';
+
+    // Animate each turn
+    for (let i = 0; i < turnLog.length; i++) {
+        const turn = turnLog[i];
+        const isA = turn.attacker && (turn.attacker === pA.name || turn.attacker.includes(classA.charAt(0).toUpperCase()));
+        // Determine which fighter based on class name match
+        const attackerIsA = turn.attacker === (classA.charAt(0).toUpperCase() + classA.slice(1));
+
+        await delay(450);
+        document.getElementById('rpgRoundStatus').textContent = `Turn ${turn.turn || i + 1}`;
+
+        // Show effect text
+        let effectText = '';
+        let effectClass = '';
+        if (turn.damage && turn.damage > 0) {
+            effectText = `-${turn.damage}`;
+            effectClass = 'damage';
+            // Damage goes to the defender (opposite side)
+            if (attackerIsA) {
+                hpB = turn.defender_hp !== undefined ? turn.defender_hp : Math.max(0, hpB - turn.damage);
+                shakeElement('rpgFighterB');
+                spawnEffect('rpgFighterB', effectText, effectClass);
+            } else {
+                hpA = turn.defender_hp !== undefined ? turn.defender_hp : Math.max(0, hpA - turn.damage);
+                shakeElement('rpgFighterA');
+                spawnEffect('rpgFighterA', effectText, effectClass);
+            }
+        } else if (turn.effect && turn.effect.includes('heal')) {
+            const healMatch = turn.effect.match(/(\d+)/);
+            effectText = `+${healMatch ? healMatch[1] : '?'} HP`;
+            effectClass = 'heal';
+            if (attackerIsA) {
+                spawnEffect('rpgFighterA', effectText, effectClass);
+                hpA = Math.min(maxHpA, hpA + parseInt(healMatch?.[1] || 0));
+            } else {
+                spawnEffect('rpgFighterB', effectText, effectClass);
+                hpB = Math.min(maxHpB, hpB + parseInt(healMatch?.[1] || 0));
+            }
+        } else if (turn.effect && turn.effect.includes('defend')) {
+            effectText = 'DEFEND';
+            effectClass = 'buff';
+            spawnEffect(attackerIsA ? 'rpgFighterA' : 'rpgFighterB', effectText, effectClass);
+        } else if (turn.debuff) {
+            effectText = turn.debuff;
+            effectClass = 'damage';
+            spawnEffect(attackerIsA ? 'rpgFighterB' : 'rpgFighterA', effectText, effectClass);
+        } else if (turn.dot) {
+            effectText = 'POISON';
+            effectClass = 'damage';
+            spawnEffect(attackerIsA ? 'rpgFighterB' : 'rpgFighterA', effectText, effectClass);
+        }
+
+        updateRpgBars('A', hpA, maxHpA, mpA, maxMpA);
+        updateRpgBars('B', hpB, maxHpB, mpB, maxMpB);
+
+        // Add to log
+        const row = document.createElement('div');
+        row.className = 'rpg-log-row';
+        const dmgStr = turn.damage ? `<span class="rpg-log-effect damage">-${turn.damage} HP</span>` :
+                       turn.effect ? `<span class="rpg-log-effect heal">${turn.effect}</span>` : '';
+        row.innerHTML = `
+            <span class="rpg-log-turn">T${turn.turn || i + 1}</span>
+            <span class="rpg-log-name">${turn.attacker || '?'}</span>
+            <span class="rpg-log-ability">${turn.ability || '?'}</span>
+            ${dmgStr}
+        `;
+        logEl.appendChild(row);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Show result
+    await delay(600);
+    const winMethod = matchResult.method || d.win_method || '';
+    document.getElementById('rpgRoundStatus').textContent = isAWinner ? `${pA.name} Wins!` : `${pB.name} Wins!`;
+    document.getElementById('rpgBadgeA').innerHTML = `<span class="rpg-winner-badge ${isAWinner ? 'win' : 'lose'}">${isAWinner ? 'Winner' : winMethod === 'KO' ? 'KO' : 'Lost'}</span>`;
+    document.getElementById('rpgBadgeB').innerHTML = `<span class="rpg-winner-badge ${isAWinner ? 'lose' : 'win'}">${isAWinner ? (winMethod === 'KO' ? 'KO' : 'Lost') : 'Winner'}</span>`;
+
+    // Final HP
+    updateRpgBars('A', d.final_hp_a, maxHpA, 0, maxMpA);
+    updateRpgBars('B', d.final_hp_b, maxHpB, 0, maxMpB);
+
+    if (autoClose) {
+        await delay(3000);
+        closeRpgBattle();
+    }
+}
+
+function updateRpgBars(side, hp, maxHp, mp, maxMp) {
+    const pct = Math.max(0, (hp / maxHp) * 100);
+    const fillEl = document.getElementById('rpgHp' + side);
+    fillEl.style.width = pct + '%';
+    fillEl.className = 'rpg-hp-fill' + (pct < 25 ? ' critical' : pct < 50 ? ' low' : '');
+    document.getElementById('rpgHpText' + side).textContent = `HP: ${Math.max(0, Math.round(hp))}/${maxHp}`;
+    if (maxMp > 0) {
+        const mpPct = Math.max(0, (mp / maxMp) * 100);
+        document.getElementById('rpgMp' + side).style.width = mpPct + '%';
+        document.getElementById('rpgMpText' + side).textContent = `MP: ${Math.max(0, Math.round(mp))}/${maxMp}`;
+    }
+}
+
+function shakeElement(id) {
+    const el = document.getElementById(id);
+    el.classList.add('rpg-shake');
+    setTimeout(() => el.classList.remove('rpg-shake'), 400);
+}
+
+function spawnEffect(parentId, text, cls) {
+    const parent = document.getElementById(parentId);
+    const el = document.createElement('div');
+    el.className = 'rpg-effect ' + cls;
+    el.textContent = text;
+    el.style.left = '50%';
+    el.style.top = '20%';
+    el.style.transform = 'translateX(-50%)';
+    parent.style.position = 'relative';
+    parent.appendChild(el);
+    setTimeout(() => el.remove(), 800);
 }
 
 // ====== Modal ======

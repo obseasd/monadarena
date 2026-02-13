@@ -258,6 +258,8 @@ class RPGBattleGame(GameBase):
                 "class_b": class_b,
                 "final_hp_a": fighter_a.hp,
                 "final_hp_b": fighter_b.hp,
+                "max_hp_a": fighter_a.max_hp,
+                "max_hp_b": fighter_b.max_hp,
                 "turns": len(self.turn_log),
                 "win_method": win_method,
                 "turn_log": self.turn_log,
