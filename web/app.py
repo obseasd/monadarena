@@ -752,4 +752,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print("\n  MonadArena Web UI starting...")
     print(f"  Open http://localhost:{port} in your browser\n")
-    app.run(debug=True, port=port, host="0.0.0.0", use_reloader=False)
+    app.run(debug=True, port=port, host="0.0.0.0", use_reloader=False, threaded=True)

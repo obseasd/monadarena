@@ -2660,6 +2660,26 @@ let streamPollInterval = null;
 let streamEventOffset = 0;
 let streamMeta = null;
 let rpgState = {};  // Shared RPG state for real-time updates
+let eventQueue = [];    // Queue of events to process with animation delays
+let processingQueue = false;
+let streamGameType = '';
+let streamAgentA = null;
+let streamAgentB = null;
+
+// Animation delay per event type (ms)
+const EVENT_DELAYS = {
+    rpg_turn: 800,
+    rpg_init: 600,
+    rpg_end: 400,
+    poker_action: 600,
+    poker_stage: 700,
+    poker_init: 600,
+    poker_result: 400,
+    round_start: 500,
+    round_result: 1000,
+    complete: 0,
+    error: 0,
+};
 
 async function startStreamMatch(gameType, rounds) {
     // Close popup menu
@@ -2696,6 +2716,11 @@ async function startStreamMatch(gameType, rounds) {
 
         streamMeta = r.meta;
         streamEventOffset = 0;
+        eventQueue = [];
+        processingQueue = false;
+        streamGameType = gameType;
+        streamAgentA = a;
+        streamAgentB = b;
 
         // Open the appropriate overlay immediately
         if (gameType === 'poker') {
@@ -2705,46 +2730,67 @@ async function startStreamMatch(gameType, rounds) {
         }
 
         // Start polling for events
-        streamPollInterval = setInterval(() => pollStreamEvents(gameType, a, b), 400);
+        streamPollInterval = setInterval(pollStreamEvents, 500);
 
     } catch (e) {
         showToast('Match Error', e.message, 'error');
     }
 }
 
-async function pollStreamEvents(gameType, agentA, agentB) {
+async function pollStreamEvents() {
     try {
         const data = await API.get(`/api/match/events?offset=${streamEventOffset}`);
         if (!data.events || data.events.length === 0) return;
 
         for (const evt of data.events) {
             streamEventOffset++;
-
-            if (gameType === 'poker') {
-                handlePokerEvent(evt, agentA, agentB);
-            } else if (gameType === 'rpg') {
-                handleRpgEvent(evt, agentA, agentB);
-            }
-
-            // Handle common events
-            if (evt.type === 'round_result') {
-                showToast(`Round ${evt.round}`,
-                    `${evt.winner} beats ${evt.loser} (${evt.method})`, 'success', 3000);
-                await refreshAll();
-            }
-            if (evt.type === 'complete') {
-                clearInterval(streamPollInterval);
-                streamPollInterval = null;
-                showToast('Series Complete', `All rounds finished!`, 'success', 5000);
-                await refreshAll();
-            }
-            if (evt.type === 'error') {
-                clearInterval(streamPollInterval);
-                streamPollInterval = null;
-                showToast('Match Error', evt.message, 'error');
-            }
+            eventQueue.push(evt);
         }
+
+        // Start draining the queue if not already running
+        if (!processingQueue) drainEventQueue();
     } catch (e) { /* ignore polling errors */ }
+}
+
+async function drainEventQueue() {
+    if (processingQueue) return;
+    processingQueue = true;
+
+    while (eventQueue.length > 0) {
+        const evt = eventQueue.shift();
+
+        // Dispatch to game-specific handler
+        if (streamGameType === 'poker') {
+            handlePokerEvent(evt, streamAgentA, streamAgentB);
+        } else if (streamGameType === 'rpg') {
+            handleRpgEvent(evt, streamAgentA, streamAgentB);
+        }
+
+        // Handle common events
+        if (evt.type === 'round_result') {
+            showToast(`Round ${evt.round}`,
+                `${evt.winner} beats ${evt.loser} (${evt.method})`, 'success', 3000);
+        }
+        if (evt.type === 'complete') {
+            clearInterval(streamPollInterval);
+            streamPollInterval = null;
+            showToast('Series Complete', 'All rounds finished!', 'success', 5000);
+            await refreshAll();
+        }
+        if (evt.type === 'error') {
+            clearInterval(streamPollInterval);
+            streamPollInterval = null;
+            showToast('Match Error', evt.message, 'error');
+        }
+
+        // Animation delay between events
+        const delay = EVENT_DELAYS[evt.type] ?? 200;
+        if (delay > 0) {
+            await new Promise(r => setTimeout(r, delay));
+        }
+    }
+
+    processingQueue = false;
 }
 
 // ====== POKER REAL-TIME HANDLERS ======
@@ -2885,6 +2931,7 @@ function initRpgOverlay(agentA, agentB) {
 
 function handleRpgEvent(evt, agentA, agentB) {
     if (evt.type === 'round_start') {
+        document.getElementById('rpgStatus').textContent = `Round ${evt.round}/${evt.total_rounds}`;
         document.getElementById('rpgRoundStatus').textContent = `Round ${evt.round}/${evt.total_rounds}`;
         document.getElementById('rpgBadgeA').innerHTML = '';
         document.getElementById('rpgBadgeB').innerHTML = '';
