@@ -35,10 +35,28 @@ tournament_state: dict | None = None
 match_events: list[dict] = []
 match_meta: dict | None = None
 
+# Anti-abuse limits
+MAX_AGENTS = 10
+ARENA_RESET_INTERVAL = 3600  # 1 hour in seconds
+last_arena_reset: float = time.time()
+
+
+def _check_arena_reset():
+    """Reset arena if more than 1 hour has passed since last reset."""
+    global arena, last_arena_reset, match_feed, completed_matches, tournament_state
+    if time.time() - last_arena_reset >= ARENA_RESET_INTERVAL:
+        logger.info("Hourly arena reset: clearing all agents")
+        arena = None
+        match_feed = []
+        completed_matches = []
+        tournament_state = None
+        last_arena_reset = time.time()
+
 
 def get_arena() -> ArenaManager:
     """Get or create the arena manager."""
     global arena
+    _check_arena_reset()
     if arena is None:
         config = Config()
         on_chain = config.private_key and config.private_key != ("0x" + "0" * 64)
@@ -75,11 +93,16 @@ def api_status():
             "bluffs_successful": agent.bluffs_successful,
         })
 
+    time_since_reset = time.time() - last_arena_reset
+    next_reset_in = max(0, ARENA_RESET_INTERVAL - time_since_reset)
+
     return jsonify({
         "agents": agents,
         "total_matches": len(mgr.match_history),
         "on_chain": mgr.on_chain,
         "is_running": is_running,
+        "max_agents": MAX_AGENTS,
+        "next_reset_in": int(next_reset_in),
     })
 
 
@@ -121,6 +144,10 @@ def api_create_agent():
     balance = float(data.get("balance", 1.0))
 
     mgr = get_arena()
+
+    if len(mgr.agents) >= MAX_AGENTS:
+        return jsonify({"error": f"Agent limit reached ({MAX_AGENTS}). Arena resets every hour."}), 429
+
     agent = mgr.create_agent(name, address, personality, balance)
 
     add_feed_event("agent_created", f"{name} ({personality}) joined the arena")
