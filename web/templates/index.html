@@ -2059,11 +2059,16 @@
 // ====== API ======
 const API = {
     get: url => fetch(url).then(r => r.json()),
-    post: (url, d) => fetch(url, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(d)
-    }).then(r => r.json())
+    post: async (url, d) => {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(d)
+        });
+        const text = await r.text();
+        try { return JSON.parse(text); }
+        catch { return { error: `Server error (${r.status})` }; }
+    }
 };
 
 let lastFeedLen = 0;
@@ -2791,25 +2796,25 @@ function handlePokerEvent(evt, agentA, agentB) {
     else if (evt.type === 'poker_init') {
         const handA = parseCards(evt.hand_a);
         const handB = parseCards(evt.hand_b);
-        pokerStreamState.community = parseCards(evt.community);
-        pokerStreamState.handAName = evt.hand_a_name;
-        pokerStreamState.handBName = evt.hand_b_name;
         pokerStreamState.playerAAddr = evt.player_a_addr;
 
         document.getElementById('ptHandA').innerHTML = handA.map(c => renderPokerCard(c)).join('');
         document.getElementById('ptHandB').innerHTML = handB.map(c => renderPokerCard(c)).join('');
+        document.getElementById('ptCommunity').innerHTML = '';
         document.getElementById('ptStatus').textContent = 'Pre-flop';
     }
     else if (evt.type === 'poker_stage') {
-        const com = pokerStreamState.community || [];
-        if (evt.community_shown > 0 && com.length >= evt.community_shown) {
+        // Community cards are sent directly as a string
+        const com = parseCards(evt.community);
+        if (com.length > 0) {
             document.getElementById('ptCommunity').innerHTML =
-                com.slice(0, evt.community_shown).map(c => renderPokerCard(c)).join('');
+                com.map(c => renderPokerCard(c)).join('');
         }
         document.getElementById('ptStatus').textContent = evt.stage.charAt(0).toUpperCase() + evt.stage.slice(1);
     }
     else if (evt.type === 'poker_action') {
-        const shortName = evt.player_name.length > 8 ? evt.player_name.slice(0, 8) : evt.player_name;
+        const playerName = evt.player_name || '?';
+        const shortName = playerName.length > 8 ? playerName.slice(0, 8) : playerName;
         const bluffStr = evt.bluff_prob > 0.2 ? `Bluff: ${(evt.bluff_prob * 100).toFixed(0)}%` : '';
 
         const actionsEl = document.getElementById('ptActions');
@@ -2819,20 +2824,24 @@ function handlePokerEvent(evt, agentA, agentB) {
             <span class="pt-action-round">${evt.stage}</span>
             <span class="pt-action-player">${shortName}</span>
             <span class="pt-action-type ${evt.action}">${evt.action}</span>
-            ${evt.amount > 0 ? `<span class="pt-action-amount">${evt.amount.toFixed(4)}</span>` : ''}
+            ${evt.amount > 0 ? `<span class="pt-action-amount">${Number(evt.amount).toFixed(4)}</span>` : ''}
             ${bluffStr ? `<span class="pt-action-bluff">${bluffStr}</span>` : ''}
         `;
         actionsEl.appendChild(row);
         actionsEl.scrollTop = actionsEl.scrollHeight;
     }
-    else if (evt.type === 'poker_showdown') {
-        document.getElementById('ptStatus').textContent = 'Showdown';
-        if (pokerStreamState.community && pokerStreamState.community.length > 0) {
-            document.getElementById('ptCommunity').innerHTML =
-                pokerStreamState.community.map(c => renderPokerCard(c)).join('');
+    else if (evt.type === 'poker_result') {
+        // Showdown or fold result from engine
+        if (evt.community) {
+            const com = parseCards(evt.community);
+            if (com.length > 0) {
+                document.getElementById('ptCommunity').innerHTML =
+                    com.map(c => renderPokerCard(c)).join('');
+            }
         }
-        document.getElementById('ptHandNameA').textContent = pokerStreamState.handAName || '';
-        document.getElementById('ptHandNameB').textContent = pokerStreamState.handBName || '';
+        document.getElementById('ptHandNameA').textContent = evt.hand_a_name || '';
+        document.getElementById('ptHandNameB').textContent = evt.hand_b_name || '';
+        document.getElementById('ptStatus').textContent = evt.win_method === 'fold' ? 'Fold' : 'Showdown';
     }
     else if (evt.type === 'round_result') {
         const isAWinner = evt.winner_addr === pokerStreamState.playerAAddr;
@@ -2911,32 +2920,26 @@ function handleRpgEvent(evt, agentA, agentB) {
         document.getElementById('rpgRoundStatus').textContent = 'Battle Start!';
     }
     else if (evt.type === 'rpg_turn') {
-        const classAName = rpgState.classA ? rpgState.classA.charAt(0).toUpperCase() + rpgState.classA.slice(1) : '';
-        const attackerIsA = evt.attacker === classAName;
+        // Use attacker_addr for robust side detection
+        const attackerIsA = evt.attacker_addr === rpgState.playerAAddr;
 
         document.getElementById('rpgRoundStatus').textContent = `Round ${evt.round} \u2014 Turn ${evt.turn_num}`;
 
-        // Apply effects
+        // Use real HP/MP values from the game engine
+        rpgState.hpA = evt.hp_a !== undefined ? evt.hp_a : rpgState.hpA;
+        rpgState.hpB = evt.hp_b !== undefined ? evt.hp_b : rpgState.hpB;
+        rpgState.mpA = evt.mp_a !== undefined ? evt.mp_a : rpgState.mpA;
+        rpgState.mpB = evt.mp_b !== undefined ? evt.mp_b : rpgState.mpB;
+
+        // Visual effects
         if (evt.damage && evt.damage > 0) {
-            if (attackerIsA) {
-                rpgState.hpB = evt.defender_hp !== undefined ? evt.defender_hp : Math.max(0, rpgState.hpB - evt.damage);
-                shakeElement('rpgFighterB');
-                spawnEffect('rpgFighterB', `-${evt.damage}`, 'damage');
-            } else {
-                rpgState.hpA = evt.defender_hp !== undefined ? evt.defender_hp : Math.max(0, rpgState.hpA - evt.damage);
-                shakeElement('rpgFighterA');
-                spawnEffect('rpgFighterA', `-${evt.damage}`, 'damage');
-            }
+            const targetId = attackerIsA ? 'rpgFighterB' : 'rpgFighterA';
+            shakeElement(targetId);
+            spawnEffect(targetId, `-${evt.damage}`, 'damage');
         } else if (evt.effect && evt.effect.includes('heal')) {
             const healMatch = evt.effect.match(/(\d+)/);
             const healAmt = parseInt(healMatch?.[1] || 0);
-            if (attackerIsA) {
-                rpgState.hpA = Math.min(rpgState.maxHpA, rpgState.hpA + healAmt);
-                spawnEffect('rpgFighterA', `+${healAmt} HP`, 'heal');
-            } else {
-                rpgState.hpB = Math.min(rpgState.maxHpB, rpgState.hpB + healAmt);
-                spawnEffect('rpgFighterB', `+${healAmt} HP`, 'heal');
-            }
+            spawnEffect(attackerIsA ? 'rpgFighterA' : 'rpgFighterB', `+${healAmt} HP`, 'heal');
         } else if (evt.effect && evt.effect.includes('defend')) {
             spawnEffect(attackerIsA ? 'rpgFighterA' : 'rpgFighterB', 'DEFEND', 'buff');
         } else if (evt.debuff) {

@@ -146,16 +146,22 @@ class PokerGame(GameBase):
     Higher blinds (5%/10% of stack) force more action and showdowns.
     """
 
-    def __init__(self, strategy_engines: dict = None, small_blind: float = 0.0025):
+    def __init__(self, strategy_engines: dict = None, small_blind: float = 0.0025, event_callback=None):
         self.strategy_engines = strategy_engines or {}
         self.small_blind = small_blind
         self.big_blind = small_blind * 2
+        self.event_callback = event_callback
         self.deck = Deck()
         self.community_cards: list[Card] = []
         self.hands: dict[str, list[Card]] = {}
         self.pot = 0.0
         self.round_log: list[dict] = []
         self.reasoning_log: list[dict] = []
+
+    def _emit(self, event: dict):
+        """Emit a real-time event via callback."""
+        if self.event_callback:
+            self.event_callback(event)
 
     def get_game_type(self) -> GameType:
         return GameType.POKER
@@ -195,6 +201,15 @@ class PokerGame(GameBase):
         logger.info(f"  Hands: {player_a[:8]}=[{self._hand_str(player_a)}] {player_b[:8]}=[{self._hand_str(player_b)}]")
         logger.info(f"  Blinds: SB={sb_amount:.4f} BB={bb_amount:.4f}")
 
+        # Emit init event for real-time streaming
+        self._emit({
+            "type": "poker_init",
+            "hand_a": self._hand_str(player_a),
+            "hand_b": self._hand_str(player_b),
+            "player_a_addr": player_a,
+            "player_b_addr": player_b,
+        })
+
         rounds = [
             ("preflop", 0),
             ("flop", 3),
@@ -208,6 +223,14 @@ class PokerGame(GameBase):
                 self.community_cards.extend(self.deck.deal(cards_to_deal))
 
             logger.info(f"  --- {round_name.upper()} --- board=[{self._community_str()}] pot={self.pot:.4f}")
+
+            # Emit stage event for real-time streaming
+            self._emit({
+                "type": "poker_stage",
+                "stage": round_name,
+                "community": self._community_str(),
+                "community_count": len(self.community_cards),
+            })
 
             # Run betting round
             folded = self._run_betting_round(
@@ -246,6 +269,17 @@ class PokerGame(GameBase):
             )
 
         logger.info(f"  WINNER: {winner[:8]} by {win_method}, pot={self.pot:.4f} MON")
+
+        # Emit result event for real-time streaming
+        self._emit({
+            "type": "poker_result",
+            "win_method": win_method,
+            "hand_a_name": hand_a_name,
+            "hand_b_name": hand_b_name,
+            "community": self._community_str(),
+            "pot": self.pot,
+            "winner": winner,
+        })
 
         return GameResult(
             game_type=GameType.POKER,
@@ -314,12 +348,23 @@ class PokerGame(GameBase):
 
                 action = decision["action"]
 
-                self.round_log.append({
+                action_entry = {
                     "round": round_name,
                     "player": player,
                     "action": action,
                     "amount": decision.get("raise_amount", 0),
                     "bluff_prob": decision.get("bluff_probability", 0),
+                }
+                self.round_log.append(action_entry)
+
+                # Emit action event for real-time streaming
+                self._emit({
+                    "type": "poker_action",
+                    "stage": round_name,
+                    "player": player,
+                    "action": action,
+                    "amount": action_entry["amount"],
+                    "bluff_prob": action_entry["bluff_prob"],
                 })
 
                 if action == "fold":

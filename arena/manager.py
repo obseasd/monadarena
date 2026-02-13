@@ -90,6 +90,7 @@ class ArenaManager:
         game_type: GameType,
         wager: float,
         rpg_max_turns: int = None,
+        event_callback=None,
     ) -> GameResult:
         """Run a match between two agents with full lifecycle."""
         agent_a = self.agents.get(player_a_addr)
@@ -112,11 +113,11 @@ class ArenaManager:
 
         if game_type == GameType.POKER:
             # Higher blinds = more action, more showdowns
-            game = PokerGame(strategy_engines=strategy_engines, small_blind=wager * 0.05)
+            game = PokerGame(strategy_engines=strategy_engines, small_blind=wager * 0.05, event_callback=event_callback)
         elif game_type == GameType.AUCTION:
             game = AuctionGame(strategy_engines=strategy_engines)
         elif game_type == GameType.RPG_BATTLE:
-            game = RPGBattleGame(strategy_engines=strategy_engines, max_turns=rpg_max_turns)
+            game = RPGBattleGame(strategy_engines=strategy_engines, max_turns=rpg_max_turns, event_callback=event_callback)
         else:
             raise ValueError(f"Unknown game type: {game_type}")
 

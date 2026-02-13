@@ -289,42 +289,64 @@ def api_match_events():
 
 
 def _run_streaming_match(player_a, player_b, game_type, wager, num_rounds):
-    """Run match(es) in background, pushing events for real-time frontend."""
+    """Run match(es) in background, pushing events in real-time via game engine callbacks."""
     global is_running, match_meta
     mgr = get_arena()
     type_map = {"poker": GameType.POKER, "auction": GameType.AUCTION, "rpg": GameType.RPG_BATTLE}
     gt = type_map.get(game_type, GameType.POKER)
 
+    name_a = mgr.agents[player_a].name
+    name_b = mgr.agents[player_b].name
+
     try:
         for round_idx in range(num_rounds):
+            current_round = round_idx + 1
+
             # Emit round start
             match_events.append({
                 "type": "round_start",
-                "round": round_idx + 1,
+                "round": current_round,
                 "total_rounds": num_rounds,
                 "game_type": game_type,
             })
             add_feed_event("match_start",
-                f"Round {round_idx + 1}/{num_rounds} \u2014 {game_type.upper()} | Wager: {wager:.4f} MON")
+                f"Round {current_round}/{num_rounds} \u2014 {game_type.upper()} | Wager: {wager:.4f} MON")
+
+            def on_game_event(evt, _round=current_round):
+                """Callback fired from game engine during play - pushes events in real-time."""
+                evt["round"] = _round
+
+                # Resolve player names for poker actions
+                if evt.get("type") == "poker_action" and "player" in evt:
+                    addr = evt["player"]
+                    evt["player_name"] = name_a if addr == player_a else name_b
+
+                # Add feed entries for key events
+                if evt.get("type") == "rpg_turn":
+                    add_feed_event("rpg_turn",
+                        f"R{_round} T{evt.get('turn_num', '?')} \u2014 {evt.get('attacker', '?')} uses {evt.get('ability', '?')}")
+                elif evt.get("type") == "poker_stage":
+                    add_feed_event("poker_round",
+                        f"R{_round} \u2014 {evt.get('stage', '?').upper()}")
+
+                match_events.append(evt)
 
             # RPG: 5 turns per round
             rpg_turns = 5 if game_type == "rpg" else None
-            result = mgr.run_match(player_a, player_b, gt, wager, rpg_max_turns=rpg_turns)
+            result = mgr.run_match(
+                player_a, player_b, gt, wager,
+                rpg_max_turns=rpg_turns,
+                event_callback=on_game_event,
+            )
 
             winner_name = mgr.agents[result.winner].name
             loser_name = mgr.agents[result.loser].name
             method = result.details.get("win_method", "")
 
-            # Emit game-specific events with delays for animation
-            if game_type == "poker":
-                _stream_poker_events(result, player_a, player_b, round_idx + 1, num_rounds)
-            elif game_type == "rpg":
-                _stream_rpg_events(result, player_a, player_b, round_idx + 1, num_rounds)
-
             # Emit round result
             match_events.append({
                 "type": "round_result",
-                "round": round_idx + 1,
+                "round": current_round,
                 "winner": winner_name,
                 "loser": loser_name,
                 "winner_addr": result.winner,
@@ -333,7 +355,7 @@ def _run_streaming_match(player_a, player_b, game_type, wager, num_rounds):
                 "pot": result.details.get("pot", 0),
             })
             add_feed_event("match_result",
-                f"Round {round_idx + 1}: {winner_name} beats {loser_name} ({method})")
+                f"Round {current_round}: {winner_name} beats {loser_name} ({method})")
 
             if round_idx < num_rounds - 1:
                 time.sleep(1.0)  # Pause between rounds
@@ -347,117 +369,6 @@ def _run_streaming_match(player_a, player_b, game_type, wager, num_rounds):
         add_feed_event("error", str(e))
     finally:
         is_running = False
-
-
-def _stream_poker_events(result, player_a, player_b, round_num, total_rounds):
-    """Push poker events with delays for real-time animation."""
-    mgr = get_arena()
-    name_a = mgr.agents[player_a].name
-    name_b = mgr.agents[player_b].name
-
-    # Init event with hands and setup
-    match_events.append({
-        "type": "poker_init",
-        "round": round_num,
-        "hand_a": result.details.get("hand_a", ""),
-        "hand_b": result.details.get("hand_b", ""),
-        "hand_a_name": result.details.get("hand_a_name", ""),
-        "hand_b_name": result.details.get("hand_b_name", ""),
-        "community": result.details.get("community", ""),
-        "player_a_addr": player_a,
-        "player_b_addr": player_b,
-    })
-    time.sleep(0.6)
-
-    # Stream each action
-    rounds_data = result.details.get("rounds", [])
-    current_stage = ""
-    community = result.details.get("community", "").split(", ") if result.details.get("community") else []
-
-    for action in rounds_data:
-        stage = action.get("round", "")
-        if stage != current_stage:
-            current_stage = stage
-            # Emit stage change with community cards
-            cards_shown = 0
-            if stage == "flop":
-                cards_shown = 3
-            elif stage == "turn":
-                cards_shown = 4
-            elif stage == "river":
-                cards_shown = 5
-            match_events.append({
-                "type": "poker_stage",
-                "stage": stage,
-                "community_shown": cards_shown,
-            })
-            add_feed_event("poker_round",
-                f"R{round_num} \u2014 {stage.upper()}")
-            time.sleep(0.4)
-
-        # Emit action
-        player_name = name_a if action.get("player") == player_a else name_b
-        match_events.append({
-            "type": "poker_action",
-            "stage": stage,
-            "player": action.get("player", ""),
-            "player_name": player_name,
-            "action": action.get("action", ""),
-            "amount": action.get("amount", 0),
-            "bluff_prob": action.get("bluff_prob", 0),
-        })
-        time.sleep(0.5)
-
-    # Showdown
-    match_events.append({"type": "poker_showdown", "round": round_num})
-    time.sleep(0.3)
-
-
-def _stream_rpg_events(result, player_a, player_b, round_num, total_rounds):
-    """Push RPG events with delays for real-time animation."""
-    mgr = get_arena()
-
-    # Init event
-    match_events.append({
-        "type": "rpg_init",
-        "round": round_num,
-        "class_a": result.details.get("class_a", ""),
-        "class_b": result.details.get("class_b", ""),
-        "max_hp_a": result.details.get("max_hp_a", 100),
-        "max_hp_b": result.details.get("max_hp_b", 100),
-        "player_a_addr": player_a,
-        "player_b_addr": player_b,
-    })
-    time.sleep(0.5)
-
-    # Stream each turn
-    turn_log = result.details.get("turn_log", [])
-    for i, turn in enumerate(turn_log):
-        match_events.append({
-            "type": "rpg_turn",
-            "round": round_num,
-            "turn_num": turn.get("turn", i + 1),
-            "attacker": turn.get("attacker", ""),
-            "ability": turn.get("ability", ""),
-            "ability_type": turn.get("type", ""),
-            "damage": turn.get("damage", 0),
-            "defender_hp": turn.get("defender_hp"),
-            "effect": turn.get("effect", ""),
-            "debuff": turn.get("debuff", ""),
-            "dot": turn.get("dot", ""),
-        })
-        add_feed_event("rpg_turn",
-            f"R{round_num} T{turn.get('turn', i+1)} \u2014 {turn.get('attacker', '?')} uses {turn.get('ability', '?')}")
-        time.sleep(0.5)
-
-    # Battle end
-    match_events.append({
-        "type": "rpg_end",
-        "round": round_num,
-        "final_hp_a": result.details.get("final_hp_a", 0),
-        "final_hp_b": result.details.get("final_hp_b", 0),
-    })
-    time.sleep(0.3)
 
 
 @app.route("/api/demo/run", methods=["POST"])

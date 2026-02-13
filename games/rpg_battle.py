@@ -165,14 +165,20 @@ class RPGBattleGame(GameBase):
 
     MAX_TURNS = 20
 
-    def __init__(self, strategy_engines: dict = None, class_overrides: dict = None, max_turns: int = None):
+    def __init__(self, strategy_engines: dict = None, class_overrides: dict = None, max_turns: int = None, event_callback=None):
         self.strategy_engines = strategy_engines or {}
         self.class_overrides = class_overrides or {}
         if max_turns is not None:
             self.MAX_TURNS = max_turns
+        self.event_callback = event_callback
         self.fighters: dict[str, Fighter] = {}
         self.turn_log: list[dict] = []
         self.reasoning_log: list[dict] = []
+
+    def _emit(self, event: dict):
+        """Emit a real-time event via callback."""
+        if self.event_callback:
+            self.event_callback(event)
 
     def get_game_type(self) -> GameType:
         return GameType.RPG_BATTLE
@@ -197,6 +203,17 @@ class RPGBattleGame(GameBase):
         self.fighters = {player_a: fighter_a, player_b: fighter_b}
 
         logger.info(f"RPG Battle: {fighter_a.name} vs {fighter_b.name}, wager={wager:.4f} MON")
+
+        # Emit init event for real-time streaming
+        self._emit({
+            "type": "rpg_init",
+            "class_a": class_a,
+            "class_b": class_b,
+            "max_hp_a": fighter_a.max_hp,
+            "max_hp_b": fighter_b.max_hp,
+            "player_a_addr": player_a,
+            "player_b_addr": player_b,
+        })
 
         # Battle loop
         for turn in range(1, self.MAX_TURNS + 1):
@@ -225,6 +242,20 @@ class RPGBattleGame(GameBase):
                 # Resolve ability
                 self._resolve_ability(attacker, defender, ability_name, turn)
 
+                # Emit turn event for real-time streaming
+                if self.turn_log:
+                    log_entry = self.turn_log[-1]
+                    self._emit({
+                        "type": "rpg_turn",
+                        "turn_num": turn,
+                        "attacker_addr": attacker_addr,
+                        **log_entry,
+                        "hp_a": fighter_a.hp,
+                        "hp_b": fighter_b.hp,
+                        "mp_a": fighter_a.mp,
+                        "mp_b": fighter_b.mp,
+                    })
+
                 if not defender.alive():
                     break
 
@@ -249,6 +280,12 @@ class RPGBattleGame(GameBase):
 
         logger.info(f"  WINNER: {self.fighters[winner].name} by {win_method}")
         logger.info(f"  Final: {fighter_a.status_str()} | {fighter_b.status_str()}")
+
+        self._emit({
+            "type": "rpg_end",
+            "final_hp_a": fighter_a.hp,
+            "final_hp_b": fighter_b.hp,
+        })
 
         return GameResult(
             game_type=GameType.RPG_BATTLE,
