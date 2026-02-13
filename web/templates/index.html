@@ -1939,7 +1939,7 @@ function renderStatus(s) {
         document.getElementById('demoBtn').innerHTML = '<span class="spinner"></span> Running...';
     } else {
         document.getElementById('demoBtn').textContent = 'Run Full Demo';
-        document.getElementById('tournamentBtn').textContent = 'Tournament';
+        document.getElementById('tournamentBtn').innerHTML = '<img src="/assets/coupe.png" alt="Tournament" style="width:26px;height:26px;vertical-align:middle;"> Tournament';
     }
 }
 
@@ -2125,7 +2125,7 @@ async function runTournament() {
                     setTimeout(() => {
                         stopSpectator();
                         btn.disabled = false;
-                        btn.textContent = 'Tournament';
+                        btn.innerHTML = '<img src="/assets/coupe.png" alt="Tournament" style="width:26px;height:26px;vertical-align:middle;"> Tournament';
                         if (btn2) { btn2.disabled = false; btn2.textContent = 'Start Tournament'; }
                         refreshAll();
                         if (state.champion) {
