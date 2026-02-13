@@ -583,6 +583,7 @@ def add_feed_event(event_type: str, message: str):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(name)s | %(message)s")
+    port = int(os.environ.get("PORT", 5000))
     print("\n  MonadArena Web UI starting...")
-    print("  Open http://localhost:5000 in your browser\n")
-    app.run(debug=True, port=5000, use_reloader=False)
+    print(f"  Open http://localhost:{port} in your browser\n")
+    app.run(debug=True, port=port, host="0.0.0.0", use_reloader=False)
