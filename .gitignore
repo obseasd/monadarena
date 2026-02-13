@@ -12,3 +12,4 @@ coverage.json
 dist/
 build/
 demo_results.json
+.vercel/
